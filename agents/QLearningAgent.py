@@ -79,7 +79,7 @@ class QLearningAgent:
             self.rewards = environment.get_rewards()
 
             # create the operations for the density model
-            density_config = {'num_models': num_models, 'action_space': self.action_space, 'state_space': self.state_space, 'num_hidden': 6}
+            density_config = {'num_models': num_models, 'action_space': self.action_space, 'state_space': self.state_space, 'num_hidden': 7}
             self.density_model = NADEModel(density_config)
             cb_density_values, cb_step_value, cb_update = self.density_model.get_graph(self.current_states, self.actions)
 

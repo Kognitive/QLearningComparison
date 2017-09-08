@@ -4,7 +4,7 @@ import tensorflow as tf
 class NADEModel:
     """Constructs a NADE Density Model."""
 
-    def __init__(self, config):
+    def __init__(self, config: dict):
         """Creates a new NADEModel using the supplied configuration
 
         Args:
@@ -29,16 +29,30 @@ class NADEModel:
         self.v = tf.placeholder(tf.float32, [self.D, self.num_models], name="v")
 
         # first of all initialize the weights
-        [self.W, self.V, self.b, self.c] = self.init_weights(self.D, self.hidden_size)
+        self.weights = self.init_weights(self.num_models, self.D, self.hidden_size)
 
-        # --------------- GRAPH ----------------------
+    def get_graph(self, states: tf.Tensor, actions: tf.Tensor):
+        """This method delivers the graph to the outside.
+
+        Args:
+            states: The states to use as an input
+            actions: The corresponding actions to use.
+        """
+
+        # convert actions and states
+        binary_states = self.int_to_binary(self.lss, states)
+        binary_actions = self.int_to_binary(self.las, actions)
+        conc = tf.concat([binary_states, binary_actions], axis=0)
+
+        # access the weights one by one
+        [W, V, b, c] = self.weights
 
         # first of all create a diagonal matrix mask for each column vector of self.v
-        weight_masked_matrix = tf.einsum('ij,kjl->kil', self.W, tf.matrix_diag(tf.transpose(self.v)))
-        hidden_layer = tf.sigmoid(tf.cumsum(weight_masked_matrix, axis=2, exclusive=True) + self.c)
+        weight_masked_matrix = tf.multiply(W, tf.expand_dims(conc, 2))
+        hidden_layer = tf.sigmoid(tf.cumsum(weight_masked_matrix, axis=2, exclusive=True) + c)
 
         # calc the distribution
-        pre_p_dist = tf.einsum('ij,kji->ik', self.V, hidden_layer) + self.b
+        pre_p_dist = tf.einsum('mdh,mhd->dm', V, hidden_layer) + b
         p_dist = tf.sigmoid(pre_p_dist)
 
         # one computational graph improvement
@@ -50,68 +64,83 @@ class NADEModel:
         log_p_dist = tf.nn.softplus(-pre_p_dist)
 
         # this gets the evaluation graph, if only one sample is supplied
-        #self.evaluation_model = tf.reduce_prod(tf.pow(p_dist, self.v) + tf.pow(inv_p_dist, inv_v), axis=0)
-        self.evaluation_model = tf.reduce_prod(tf.multiply(p_dist, self.v) + tf.multiply(inv_p_dist, inv_v), axis=0)
-        self.nll = -tf.reduce_mean(tf.reduce_sum(-self.v * log_p_dist - inv_v * log_iv_p_dist, axis=0))
+        # self.evaluation_model = tf.reduce_prod(tf.pow(p_dist, self.v) + tf.pow(inv_p_dist, inv_v), axis=0)
+        evaluation_model = tf.reduce_prod(tf.multiply(p_dist, self.v) + tf.multiply(inv_p_dist, inv_v), axis=0)
+        nll = -tf.reduce_sum(-self.v * log_p_dist - inv_v * log_iv_p_dist)
 
         # retrieve the minimizer
-        self.minimizer = tf.train.AdamOptimizer(learning_rate).minimize(self.nll, var_list=[self.W, self.V, self.b, self.c])
+        minimizer = tf.train.AdamOptimizer(0.0001).minimize(nll, var_list=[W, V, b, c])
 
-        init = tf.global_variables_initializer()
-        self.sess = tf.Session()
-        self.sess.run(init)
+        # create normal count based update
+        cb_step_value = tf.get_variable("cb_step", dtype=tf.int64, shape=[], initializer=tf.zeros_initializer)
+        cb_step_update = tf.count_up_to(cb_step_value, 2 ** 63 - 1)
 
-    def get_graph(self, states, actions):
+        # group both actions
+        cb_update = tf.group([minimizer, cb_step_update])
 
-    # inits the weights
-    def init_weights(self, input_size, hidden_size):
+        # return the model
+        return evaluation_model, cb_step_value, cb_update
+
+    def int_to_binary(self, num_bits: int, input: tf.Tensor) -> tf.Tensor:
+        """This method converts an input number to a tensor
+        with the corresponding binary values.
+
+        Args:
+            num_bits: The number of bits the number should be represented.
+            input: The input itself, should be a tensor of rank 1 where the size is equal to num_models"""
+
+        # Create a new iteration tuples
+        iteration_tuple = (input, None)
+
+        # The condition is simple
+        cond = lambda i, l: tf.reduce_sum(tf.abs(input)) > 0
+
+        # Simple definition for the body
+        def body(i: tf.Tensor, l) -> (tf.Tensor, tf.Tensor):
+            """This method basically extracts the last binary digit and returns the modulated value"""
+
+            # check if l was supplied and save
+            append_el = tf.expand_dims(tf.floormod(i, 2), 0)
+            l = append_el if l is None else tf.concat([l, append_el], axis=0)
+            i = tf.floordiv(i, 2)
+
+            return i, l
+
+        # simply convert the number
+        _, binary_values = tf.while_loop(cond, body, iteration_tuple)
+
+        # add some zero tensors
+        pad_offset = num_bits - tf.shape(binary_values)[0]
+        padded_binaries = tf.pad(binary_values, [[0, pad_offset], [0, 0]])
+
+        # pass back the result
+        return padded_binaries
+
+    def init_weights(self, num_models: int, input_size: int, hidden_size: int):
+        """This method initializes the weights for all density models.
+
+        Args:
+            num_models: The number of different models
+            input_size: The input dimension to this problem
+            hidden_size: The number of neurons used inside of the hidden layer.
+        """
 
         # create the vectors for V and W
-        W = self.init_single_weight([hidden_size, input_size], "W")
-        V = self.init_single_weight([input_size, hidden_size], "V")
-        b = self.init_single_weight([input_size, 1], "b")
-        c = self.init_single_weight([hidden_size, 1], "c")
+        W = self.init_single_weight([num_models, hidden_size, input_size], "W")
+        V = self.init_single_weight([num_models, input_size, hidden_size], "V")
+        b = self.init_single_weight([num_models, input_size], "b")
+        c = self.init_single_weight([num_models, hidden_size, 1], "c")
 
         # return all weights
         return [W, V, b, c]
 
-    # inits the weights
     def init_single_weight(self, size, name):
+        """This method initializes a single weight. The only thing you have
+        to specify is the size of the tensor as well as the name.
+
+        Args:
+            size: The shape of the weight.
+            name: The name of this tensor
+        """
+
         return tf.Variable(tf.random_normal(size, mean=0.0, stddev=0.01), name=name)
-
-    # this method basically walks one step in the direction
-    # for the
-    def step(self, samples, num_steps):
-
-        # when the size of the memory is zero use the original samples
-        if (self.MS == 0):
-
-            # simply use the passed samples
-            rand_samples = samples
-
-        else:
-
-            # length
-            N = np.size(samples, 1)
-
-            # add them to the memory
-            for i in range(N):
-                self.M.insert(samples[:, i])
-
-            # sample a minibatch of same length than samples
-            rand_samples = self.M.sample(10)
-
-
-        for k in range(num_steps):
-
-            # print("Training batch is: ", np.transpose(samples))
-            self.sess.run(self.minimizer, feed_dict={ self.v: rand_samples })
-
-    # this method actually calculates the log likelihood
-    def get_log_likelihood(self, samples):
-        return self.sess.run(self.nll, feed_dict={ self.v: samples })
-
-    # evaluates the model at sample
-    def evaluate(self, sample):
-        val = self.sess.run(self.evaluation_model, feed_dict={ self.v: sample })
-        return val

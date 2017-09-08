@@ -59,11 +59,9 @@ with graph.as_default():
 
         # define the different policies you want to try out
         policies = [
-             ['$\epsilon$-Greedy (0.001)', EpsilonGreedyPolicy, {'action_space': action_space, 'epsilon': 0.001}],
-             ['$\epsilon$-Greedy (0.005)', EpsilonGreedyPolicy, {'action_space': action_space, 'epsilon': 0.005}],
-             ['$\epsilon$-Greedy (0.01)', EpsilonGreedyPolicy, {'action_space': action_space, 'epsilon': 0.01}],
-             ['$\epsilon$-Greedy (0.05)', EpsilonGreedyPolicy, {'action_space': action_space, 'epsilon': 0.05}],
-             ['$\epsilon$-Greedy (0.1)', EpsilonGreedyPolicy, {'action_space': action_space, 'epsilon': 0.1}]
+             ['$\epsilon$-Greedy (0.001)', EpsilonGreedyPolicy, {'action_space': action_space, 'epsilon': 0.001, 'pseudo_count': True, 'beta': 10}],
+             ['$\epsilon$-Greedy (0.01)', EpsilonGreedyPolicy, {'action_space': action_space, 'epsilon': 0.01, 'pseudo_count': True, 'beta': 10}],
+             ['$\epsilon$-Greedy (0.1)', EpsilonGreedyPolicy, {'action_space': action_space, 'epsilon': 0.1, 'pseudo_count': True, 'beta': 10}]
 
             # ['Boltzmann (0.1)', BoltzmannPolicy, {'temperature': 0.1}],
             # ['Boltzmann (1)', BoltzmannPolicy, {'temperature': 1}],

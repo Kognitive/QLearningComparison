@@ -6,6 +6,7 @@ from policies.GreedyPolicy import GreedyPolicy
 from spaces.DiscreteSpace import DiscreteSpace
 from environments.DeterministicMDP import DeterministicMDP
 from density_models.CountBasedModel import CountBasedModel
+from density_models.NADEModel import NADEModel
 
 class QLearningAgent:
     """This class represents a basic tabular q learning agent."""
@@ -78,9 +79,9 @@ class QLearningAgent:
             self.rewards = environment.get_rewards()
 
             # create the operations for the density model
-            density_config = {'num_models': num_models, 'action_space': self.action_space, 'state_space': self.state_space}
-            self.density_model = CountBasedModel(density_config)
-            cb_densities, cb_density_values, cb_step_value, cb_update = self.density_model.get_graph(self.current_states, self.actions)
+            density_config = {'num_models': num_models, 'action_space': self.action_space, 'state_space': self.state_space, 'num_hidden': 6}
+            self.density_model = NADEModel(density_config)
+            cb_density_values, cb_step_value, cb_update = self.density_model.get_graph(self.current_states, self.actions)
 
             # shape the reward
             shaped_reward = tf.expand_dims(self.rewards, 1)

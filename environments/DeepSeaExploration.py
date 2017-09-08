@@ -4,40 +4,41 @@ from environments.DeterministicMDP import DeterministicMDP
 from spaces.DiscreteSpace import DiscreteSpace
 
 
-class BinaryFlipEnvironment(DeterministicMDP):
+class DeepSeaExploration(DeterministicMDP):
 
     def __init__(self, name, num_states, N):
 
         # create the state and action space
         self.inner_size = N
-        state_space = DiscreteSpace(2 ** N)
-        action_space = DiscreteSpace(N)
+        state_space = DiscreteSpace(N * (N + 1) / 2)
+        action_space = DiscreteSpace(2)
 
         # get size of state and action space
         size_space = state_space.get_size()
         size_action = action_space.get_size()
 
         # one maps to 2
-        starting_state = 0
+        starting_state = N + 1
 
         # specify the transition function
         transition_func = np.zeros((size_space, size_action), dtype=np.int32)
         reward_function = np.zeros((size_space, size_action), dtype=np.float64)
 
+        # sample the left action
+        left = np.random.randint(0, 2)
+        right = 1 - left
+        chest = 2 * np.random.randint(0, 2) - 1
+
         # iterate over and fill with the transitions
-        for i in range(size_space):
-            for j in range(size_action):
-                next_state = self.flip_bit(i, j, N)
-                transition_func[i, j] = next_state
-                reward_function[i, j] = np.sign(i - next_state) * np.minimum(i, next_state)
+        for x in range(N):
+            for y in range(N):
+                pos = y * N + x
+                y = y if y == N - 1 else y + 1
+                left_x = x if x == 0 else x - 1
+                right_x = x if x == N - 1 else x + 1
+
+                transition_func[pos, left] = y * N + left_x
+                transition_func[pos, right] = y * N + right_x
+                reward_function[y * (N - 1) + (N - 2), right] = chest
 
         super().__init__(name, num_states, action_space, state_space, transition_func, reward_function, starting_state)
-
-    def flip_bit(self, number, N, bits):
-        """This method flips a single bit"""
-        if (number & (1 << N)) > 0:
-            num = number & ~(1 << N)
-        else:
-            num = number | (1 << N)
-
-        return int("{:0{}b}".format(num, bits), 2)

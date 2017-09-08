@@ -6,9 +6,10 @@ from spaces.DiscreteSpace import DiscreteSpace
 
 class ExplorationChain(DeterministicMDP):
 
-    def __init__(self, num_states, N):
+    def __init__(self, name, num_states, N):
 
         # create the state and action space
+        self.inner_size = N
         state_space = DiscreteSpace(N)
         action_space = DiscreteSpace(2)
 
@@ -31,7 +32,4 @@ class ExplorationChain(DeterministicMDP):
         reward_function[0, 0] = 0.001
         reward_function[N - 1, 1] = 1
 
-        super().__init__(num_states, action_space, state_space, transition_func, reward_function, starting_state)
-
-    def single_clone(self):
-        return ExplorationChain(1, self.get_state_space().get_size())
+        super().__init__(name, num_states, action_space, state_space, transition_func, reward_function, starting_state)

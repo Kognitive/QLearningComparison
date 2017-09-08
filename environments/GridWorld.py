@@ -6,7 +6,7 @@ from spaces.DiscreteSpace import DiscreteSpace
 
 class GridWorld(DeterministicMDP):
 
-    def __init__(self, num_states, N):
+    def __init__(self, name, num_states, N):
 
         # create the state and action space
         self.inner_size = N
@@ -32,10 +32,7 @@ class GridWorld(DeterministicMDP):
             transition_func[i, 3] = i if i / N >= N - 1 else i + N
 
         # now we define the reward function
-        reward_function[2 ** N - 1, 2] = 1
-        reward_function[2 ** N - 1, 3] = 1
+        reward_function[N ** 2 - 1, 2] = 1
+        reward_function[N ** 2 - 1, 3] = 1
 
-        super().__init__(num_states, action_space, state_space, transition_func, reward_function, starting_state)
-
-    def single_clone(self):
-        return GridWorld(1, self.inner_size)
+        super().__init__(name, num_states, action_space, state_space, transition_func, reward_function, starting_state)

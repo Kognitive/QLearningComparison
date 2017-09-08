@@ -28,6 +28,4 @@ class Policy:
         """
 
         # modulate q
-        mod_q = q + (config['ucb_term'] if config is not None and 'ucb' in config and config['ucb'] in config else 0)
-        mod_q += (config['pseudo-count'] if config is not None and 'pseudo-count' in config and config['pseudo-count'] in config else 0)
         return self.choose_action(q, config)

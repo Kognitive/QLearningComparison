@@ -1,24 +1,26 @@
 # simply import the numpy package.
 import tensorflow as tf
+import collections
 
 from policies.GreedyPolicy import GreedyPolicy
 from spaces.DiscreteSpace import DiscreteSpace
-
+from environments.DeterministicMDP import DeterministicMDP
+from density_models.CountBasedModel import CountBasedModel
 
 class QLearningAgent:
     """This class represents a basic tabular q learning agent."""
 
-    def __init__(self, session, name, state_space, action_space, policy, config, debug=False):
+    def __init__(self, session, name, environment, policy, config, debug=False):
         """Constructs a QLearningAgent.
 
         Args:
-            state_space: Give the discrete state space
-            action_space: Give the discrete action space
-            policy: Give the policies_nn the agent should use
+            session: The session the agent should effectively use.
+            name: The unique name for this QLearningAgent
+            policy:
         """
+
         # check if both    spaces are derived from the correct type
-        assert isinstance(state_space, DiscreteSpace)
-        assert isinstance(action_space, DiscreteSpace)
+        assert isinstance(environment, DeterministicMDP)
 
         # first of all save the configuration
         self.config = config
@@ -38,8 +40,8 @@ class QLearningAgent:
 
         # Save the epsilon for the greedy policies_nn.
         self.policy = policy
-        self.state_space = state_space
-        self.action_space = action_space
+        self.state_space = environment.state_space
+        self.action_space = environment.action_space
 
         # define the variable scope
         with tf.variable_scope(name):
@@ -55,19 +57,30 @@ class QLearningAgent:
 
             # Define the learning rate and discount parameters a hyper parameters
             # of the Q-Learning algorithm itself
-            self.lr = tf.placeholder(tf.float64, shape=[1])
-            self.discount = tf.placeholder(tf.float64, shape=[1])
+            self.lr = tf.constant(1, tf.float64)
+            self.discount = tf.constant(0.99, tf.float64)
+            self.use_best = tf.placeholder(tf.bool, shape=None)
 
             # Furthermore define the placeholders for the tuple used by one
             # learning step.
-            self.current_states = tf.placeholder(tf.int32, shape=[num_models])
-            self.rewards = tf.placeholder(tf.float64, shape=[num_models])
-            self.actions = tf.placeholder(tf.int32, shape=[num_models])
-            self.next_states = tf.placeholder(tf.int32, shape=[num_models])
+            self.current_states = environment.get_current_state()
+
+            # retrieve the actions here
+            indices = tf.stack([self.model_range, self.current_states], axis=1)
+            q_vector = tf.gather_nd(q, indices)
+            self.best_actions, _ = GreedyPolicy().select_action(q_vector, None)
+            self.normal_actions, _ = policy().select_action(q_vector, config)
+
+            # select the actions it should use
+            self.actions = tf.cond(self.use_best, lambda: tf.identity(self.best_actions), lambda: tf.identity(self.normal_actions))
+
+            perform_operation, self.next_states = environment.perform_actions(self.actions)
+            self.rewards = environment.get_rewards()
 
             # create the operations for the density model
-            cb_densities, cb_density_values, cb_step_value, cb_update \
-                = self.create_density_models(self.current_states, self.actions)
+            density_config = {'num_models': num_models, 'action_space': self.action_space, 'state_space': self.state_space}
+            self.density_model = CountBasedModel(density_config)
+            cb_densities, cb_density_values, cb_step_value, cb_update = self.density_model.get_graph(self.current_states, self.actions)
 
             # shape the reward
             shaped_reward = tf.expand_dims(self.rewards, 1)
@@ -75,10 +88,12 @@ class QLearningAgent:
             # add ucb term if it is activated in the config
             if self.is_activated('ucb'):
                 config['ucb-term'] = self.ucb_term(config['p'], cb_step_value, cb_density_values)
+                shaped_reward += tf.expand_dims(config['ucb-term'], axis=1)
 
             # the same for the pseudo-count term
             if self.is_activated('pseudo-count'):
                 config['pseudo-count-term'] = self.pseudo_count_term(config['beta'], cb_density_values)
+                shaped_reward += tf.expand_dims(config['pseudo-count-term'], axis=1)
 
             current_q_indices = tf.stack([self.model_range, self.current_states, self.actions], axis=1)
             current_q_values = tf.gather_nd(q_tensor, current_q_indices)
@@ -92,24 +107,21 @@ class QLearningAgent:
 
             # determine the TD-Error for the Q function
             td_errors = shaped_reward + self.discount * next_best_q_values - current_q_values
+            self.perform_operation = perform_operation
 
             # add dependencies
-            with tf.control_dependencies([cb_update]):
+            with tf.control_dependencies([cb_update, perform_operation]):
 
                 # define the q tensor update for the q values
-                self.q_tensor_update = tf.scatter_nd_add(q_tensor, current_q_indices, self.lr * td_errors)
-
-            # retrieve the actions here
-            indices = tf.stack([self.model_range, self.current_states], axis=1)
-            q_vector = tf.gather_nd(q, indices)
-            self.best_actions, _ = GreedyPolicy().select_action(q_vector, None)
-            self.normal_actions, _ = policy().select_action(q_vector, config)
+                self.q_tensor_update = tf.scatter_nd_add(q_tensor, current_q_indices, self.lr * td_errors), [tf.constant(0, dtype=tf.int32)]
 
     def ucb_term(self, p_value, cb_step_value, cb_density_value):
 
         # Add UCB if necessary
         p = tf.constant(p_value, dtype=tf.float64)
-        return tf.sqrt(tf.div(tf.multiply(p, tf.log(cb_step_value)), (cb_density_value + 1)))
+        cb_step = tf.cast(cb_step_value, dtype=tf.float64)
+        cb_density = tf.cast(cb_density_value, dtype=tf.float64)
+        return tf.sqrt(tf.div(tf.multiply(p, tf.log(cb_step)), (cb_density + 1)))
 
     def pseudo_count_term(self, beta_value, cb_density_value):
 
@@ -146,7 +158,7 @@ class QLearningAgent:
         sah_list = [num_models, self.state_space.get_size(), self.action_space.get_size(), num_heads]
 
         # select based on the settings the correct optimization values
-        if num_heads > 1 or optimistic:
+        if self.config['num_heads'] > 1 or self.is_activated('optimistic'):
             init = tf.random_normal(sah_list, dtype=tf.float64) * 20.0 + 50.0
         else:
             init = tf.zeros(sah_list, dtype=tf.float64)
@@ -180,43 +192,15 @@ class QLearningAgent:
 
         return q_tensor, q_functions, current_heads, change_head
 
-    def create_density_models(self, states, actions):
-        """This method creates count-based density and step models for use in
-        different policies of the algorithm."""
-
-        # extract space sizes
-        size_as = self.action_space.get_size()
-        size_ss = self.state_space.get_size()
-        num_models = self.config['num_models']
-
-        # count based density model and the current step are simple variables
-        # with the appropriate sizes
-        cb_density = tf.get_variable("cb_density", dtype=tf.int64, shape=[num_models, size_ss, size_as], initializer=tf.zeros_initializer)
-        cb_step_value = tf.get_variable("cb_step", dtype=tf.int64, shape=[], initializer=tf.zeros_initializer)
-
-        # create a operation which adds on the cb_step variable
-        cb_step_update = tf.count_up_to(cb_step_value, 2 ** 63 - 1)
-
-        # for each dimension in append create appropriate density values
-        cb_indices = tf.stack([self.model_range, states, actions], axis=1)
-        cb_density_values = tf.gather_nd(cb_density, cb_indices)
-        cb_density_update = tf.scatter_nd_add(cb_density, indices=cb_indices, updates=tf.constant(1, shape=[num_models], dtype=tf.int64))
-
-        # create a combined update action
-        cb_update = tf.group(cb_density_update, cb_step_update)
-
-        # pass back teh actions to the callee
-        return cb_density, cb_density_values, cb_step_value, cb_update
-
     def choose_best_action(self, cs):
 
         # apply defined policies_nn from the outside
-        return self.session.run(self.best_action, feed_dict={self.current_state: [cs]})
+        return self.session.run(self.best_actions, feed_dict={self.current_states: [cs]})
 
     def choose_action(self, cs):
 
         # apply defined policies_nn from the outside
-        _, res = self.session.run(self.normal_action, feed_dict={self.current_state: [cs]})
+        _, res = self.session.run(self.normal_actions, feed_dict={self.current_states: [cs]})
         return res
 
     def sample_head(self):
@@ -242,8 +226,8 @@ class QLearningAgent:
                                  {
                                      self.lr: learning_rate,
                                      self.discount: discount,
-                                     self.current_state: [current_state],
-                                     self.reward: reward,
-                                     self.action: action,
-                                     self.next_state: next_state
+                                     self.current_states: [current_state],
+                                     self.rewards: reward,
+                                     self.actions: action,
+                                     self.next_states: next_state
                                  })

@@ -1,3 +1,5 @@
+import tensorflow as tf
+
 from spaces.DiscreteSpace import DiscreteSpace
 
 
@@ -8,22 +10,12 @@ class DiscreteEnvironment:
         should be stored inside simultaneously.
 
         Args:
-            num_states: The number of individual states."""
+            num_states: A lsit containing the number of states to remember.
+        """
 
-        # check if the parameters are indeed the correct instances
-        assert isinstance(action_space, DiscreteSpace)
-        assert isinstance(state_space, DiscreteSpace)
-        assert isinstance(num_states, int)
-        assert isinstance(initial_state, int) and 0 <= initial_state < state_space.get_size()
 
-        # save the number of states
-        self.num_states = num_states
-        self.initial_state = initial_state
-        self.action_space = action_space
-        self.state_space = state_space
 
-        # create the current state vector
-        self.current_state_vector = self.num_states * [initial_state]
+
 
     def get_action_space(self):
         """This method delivers the action space of this environment"""
@@ -49,7 +41,7 @@ class DiscreteEnvironment:
         """This method sets the current state vector internally. It
         basically inserts the same value for each individual state."""
 
-        self.current_state_vector = self.num_states * [self.initial_state]
+        return self.reset_op
 
     def perform_actions(self, actions):
         """This method should perform an action on the environment.
@@ -63,14 +55,6 @@ class DiscreteEnvironment:
             A list of rewards received for performing action[i] on state[i]
         """
         raise NotImplementedError("You have to implement a action method.")
-
-    def get_states(self):
-        """This method delivers the state vector of the environment.
-
-        Returns:
-            A list of states for each individual environment
-        """
-        return self.current_state_vector
 
     def get_optimal(self, steps, discount):
         """This method obtains the optimal reward for the infinite horizon case.

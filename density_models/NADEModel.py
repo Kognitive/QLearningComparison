@@ -62,30 +62,12 @@ class NADEModel:
 
         # this gets the evaluation graph, if only one sample is supplied
         # self.evaluation_model = tf.reduce_prod(tf.pow(p_dist, self.v) + tf.pow(inv_p_dist, inv_v), axis=0)
-        evaluation_model = tf.reduce_prod(tf.multiply(p_dist, conc) + tf.multiply(inv_p_dist, inv_v), axis=0)
+        density_value = tf.reduce_prod(tf.multiply(p_dist, conc) + tf.multiply(inv_p_dist, inv_v), axis=0)
         nll = -tf.reduce_sum(-conc * log_p_dist - inv_v * log_iv_p_dist)
-
-        # Place for the saved evaluation
-        saved_evaluation = tf.get_variable("saved_evaluation", [self.num_models], trainable=False)
-        save_evaluation = tf.assign(saved_evaluation, evaluation_model)
-
-        # retrieve the minimizer
-        with tf.control_dependencies([save_evaluation]):
-            minimizer = tf.train.AdamOptimizer(0.0001).minimize(nll, var_list=[W, V, b, c])
-
-        # execute the minimizer in prior
-        with tf.control_dependencies([minimizer]):
-            pseudo_counts = saved_evaluation * (1 - evaluation_model) / (evaluation_model - saved_evaluation)
-
-        # create normal count based update
-        cb_step_value = tf.get_variable("cb_step", dtype=tf.int64, shape=[], initializer=tf.zeros_initializer)
-        cb_step_update = tf.count_up_to(cb_step_value, 2 ** 63 - 1)
-
-        # group both actions
-        cb_update = tf.group(cb_step_update)
+        minimizer = tf.train.AdamOptimizer(0.0001).minimize(nll, var_list=[W, V, b, c])
 
         # return the model
-        return pseudo_counts, cb_step_value, cb_update
+        return density_value, minimizer
 
     def int_to_binary(self, num_bits: int, input: tf.Tensor) -> tf.Tensor:
         """This method converts an input number to a tensor

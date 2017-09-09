@@ -6,6 +6,7 @@ from policies.GreedyPolicy import GreedyPolicy
 from spaces.DiscreteSpace import DiscreteSpace
 from environments.DeterministicMDP import DeterministicMDP
 from density_models.CountBasedModel import CountBasedModel
+from density_models.CountBasedAdapter import CountBasedAdapter
 from density_models.NADEModel import NADEModel
 
 class QLearningAgent:
@@ -47,6 +48,8 @@ class QLearningAgent:
         # define the variable scope
         with tf.variable_scope(name):
 
+            self.init_submodules()
+
             # determine the current q values and q value for the selected head
             num_models = self.config['num_models']
             self.model_range = tf.range(0, num_models, 1)
@@ -78,10 +81,8 @@ class QLearningAgent:
             perform_operation, self.next_states = environment.perform_actions(self.actions)
             self.rewards = environment.get_rewards()
 
-            # create the operations for the density model
-            density_config = {'num_models': num_models, 'action_space': self.action_space, 'state_space': self.state_space, 'num_hidden': 7}
-            self.density_model = NADEModel(density_config)
-            cb_density_values, cb_step_value, cb_update = self.density_model.get_graph(self.current_states, self.actions)
+            if self.is_activated('pseudo-count') or self.is_activated('ucb'):
+                cb_density_values, cb_step_value, cb_update = self.cb_density.get_graph(self.current_states, self.actions)
 
             # shape the reward
             shaped_reward = tf.expand_dims(self.rewards, 1)
@@ -111,10 +112,23 @@ class QLearningAgent:
             self.perform_operation = perform_operation
 
             # add dependencies
-            with tf.control_dependencies([cb_update, perform_operation]):
+            with tf.control_dependencies([perform_operation]):
 
                 # define the q tensor update for the q values
                 self.q_tensor_update = tf.scatter_nd_add(q_tensor, current_q_indices, self.lr * td_errors), [tf.constant(0, dtype=tf.int32)]
+
+    def init_submodules(self):
+
+        density_config = {'num_models': self.config['num_models'], 'action_space': self.action_space,
+                          'state_space': self.state_space, 'num_hidden': 7}
+
+        if self.config['pseudo_count_type'] == 'count_based':
+            self.cb_density = CountBasedModel(density_config)
+
+        else:
+            # create the operations for the density model
+            self.density_model = NADEModel(density_config)
+            self.cb_density = CountBasedAdapter(self.config, self.density_model)
 
     def ucb_term(self, p_value, cb_step_value, cb_density_value):
 

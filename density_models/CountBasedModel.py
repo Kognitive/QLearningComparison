@@ -66,6 +66,8 @@ class CountBasedModel:
 
         # create a combined update action
         cb_update = tf.group(cb_density_update, cb_step_update)
+        with tf.control_dependencies(cb_update):
+            cb_density_values = tf.identity(cb_density_values)
 
         # pass back teh actions to the callee
-        return cb_density_values, cb_step_value, cb_update
+        return cb_density_values, cb_step_value

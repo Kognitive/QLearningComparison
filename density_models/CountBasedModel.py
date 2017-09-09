@@ -53,21 +53,25 @@ class CountBasedModel:
 
         # count based density model and the current step are simple variables
         # with the appropriate sizes
-        cb_density = tf.get_variable("cb_density", dtype=tf.int64, shape=[num_models, size_ss, size_as], initializer=tf.zeros_initializer)
-        cb_step_value = tf.get_variable("cb_step", dtype=tf.int64, shape=[], initializer=tf.zeros_initializer)
+        cb_density = tf.get_variable("cb_density", dtype=tf.int64, shape=[num_models, size_ss, size_as], initializer=tf.ones_initializer)
+        cb_casted_density = tf.cast(cb_density, tf.float32)
+        cb_step_value = tf.get_variable("cb_step", dtype=tf.int64, shape=[], initializer=tf.ones_initializer)
 
         # create a operation which adds on the cb_step variable
         cb_step_update = tf.count_up_to(cb_step_value, 2 ** 63 - 1)
 
         # for each dimension in append create appropriate density values
         cb_indices = tf.stack([self.model_range, states, actions], axis=1)
-        cb_density_values = tf.gather_nd(cb_density, cb_indices)
+        cb_density_values = tf.gather_nd(cb_casted_density, cb_indices)
         cb_density_update = tf.scatter_nd_add(cb_density, indices=cb_indices, updates=tf.constant(1, shape=[num_models], dtype=tf.int64))
 
         # create a combined update action
-        cb_update = tf.group(cb_density_update, cb_step_update)
-        with tf.control_dependencies(cb_update):
+        with tf.control_dependencies([cb_density_update, cb_step_update]):
             cb_density_values = tf.identity(cb_density_values)
+            cb_casted_density = tf.identity(cb_casted_density)
 
-        # pass back teh actions to the callee
-        return cb_density_values, cb_step_value
+            # pass back teh actions to the callee
+            norm_factor = tf.expand_dims(tf.expand_dims(tf.reduce_sum(tf.reduce_sum(cb_casted_density, axis=2), axis=1), 1), 2)
+            normed_cb_density = cb_casted_density / norm_factor
+
+            return normed_cb_density, cb_density_values, cb_step_value

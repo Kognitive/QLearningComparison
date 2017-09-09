@@ -50,16 +50,16 @@ class DeterministicMDP:
             self.transition_function = transition_function
             self.transition = tf.constant(transition_function, dtype=tf.int32)
             self.reward_function = reward_function
-            self.rewards = tf.constant(reward_function, dtype=tf.float64)
+            self.rewards = tf.constant(reward_function, dtype=tf.float32)
 
             # Create the current state vector as well as the operation to reset it to the initial state
             init = tf.constant(self.initial_state, shape=state_tensor_shape, dtype=tf.int32)
             self.current_states = tf.get_variable("current_state", dtype=tf.int32, initializer=init)
-            self.cum_rewards = tf.get_variable("cum_rewards", state_tensor_shape, dtype=tf.float64, initializer=tf.zeros_initializer)
-            self.eps_rewards = tf.get_variable("eps_rewards", state_tensor_shape, dtype=tf.float64, initializer=tf.zeros_initializer)
+            self.cum_rewards = tf.get_variable("cum_rewards", state_tensor_shape, dtype=tf.float32, initializer=tf.zeros_initializer)
+            self.eps_rewards = tf.get_variable("eps_rewards", state_tensor_shape, dtype=tf.float32, initializer=tf.zeros_initializer)
 
             reset_state = tf.assign(self.current_states, init)
-            zero_const = tf.constant(0.0, shape=state_tensor_shape, dtype=tf.float64)
+            zero_const = tf.constant(0.0, shape=state_tensor_shape, dtype=tf.float32)
             reset_cum_rewards = tf.assign(self.cum_rewards, zero_const)
             reset_eps_rewards = tf.assign(self.eps_rewards, zero_const)
 

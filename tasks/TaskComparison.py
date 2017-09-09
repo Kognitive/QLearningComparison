@@ -17,7 +17,7 @@ N = 3
 env_build = GridWorld
 
 # create variable for the steps and do this amount of steps.
-num_models = 1000
+num_models = 2
 show_models = 3
 num_episodes = 300
 num_steps = N + 9
@@ -59,9 +59,9 @@ with graph.as_default():
 
         # define the different policies you want to try out
         policies = [
-             ['$\epsilon$-Greedy (0.001)', GreedyPolicy, {'action_space': action_space, 'optimistic': True, 'pseudo_count': True, 'pseudo_count_type': 'count_based', 'beta': 10}],
-             ['$\epsilon$-Greedy (0.001)', GreedyPolicy, {'action_space': action_space, 'optimistic': True, 'pseudo_count': True, 'pseudo_count_type': 'prediction_gain', 'beta': 10, 'c': 10}],
-             ['$\epsilon$-Greedy (0.001)', GreedyPolicy, {'action_space': action_space, 'optimistic': True, 'pseudo_count': True, 'pseudo_count_type': 'pseudo_count', 'beta': 10}],
+             ['$\epsilon$-Greedy (0.001)', GreedyPolicy, {'action_space': action_space, 'optimistic': True, 'pseudo_count': True, 'pseudo_count_type': 'prediction_gain', 'beta': 10.0, 'c': 10.0}]
+             #['$\epsilon$-Greedy (0.001)', GreedyPolicy, {'action_space': action_space, 'optimistic': True, 'pseudo_count': True, 'pseudo_count_type': 'prediction_gain', 'beta': 10, 'c': 10}],
+             #['$\epsilon$-Greedy (0.001)', GreedyPolicy, {'action_space': action_space, 'optimistic': True, 'pseudo_count': True, 'pseudo_count_type': 'pseudo_count', 'beta': 10}]
              #['$\epsilon$-Greedy (0.01)', EpsilonGreedyPolicy, {'action_space': action_space, 'epsilon': 0.01, 'pseudo_count': True, 'beta': 10}],
              #['$\epsilon$-Greedy (0.1)', EpsilonGreedyPolicy, {'action_space': action_space, 'epsilon': 0.1, 'pseudo_count': True, 'beta': 10}]
 
@@ -191,6 +191,17 @@ with graph.as_default():
             val_mean[episode, :] = np.mean(val_rewards[episode, :, :], axis=1)
             val_var[episode, :] = np.var(val_rewards[episode, :, :], axis=1)
 
+        # Create Q Value Function plots
+        approx_density = [agent.all_densities_model for agent in agents]
+        reference_density = [agent.all_densities for agent in agents]
+
+        feed_dict = {}
+        for agent in agents:
+            feed_dict[agent.use_best] = True
+
+        approx_density_res, reference_density_res = sess.run([approx_density, reference_density], feed_dict)
+
+# Create first plot
 fig_error = plt.figure(0)
 top = fig_error.add_subplot(211)
 bottom = fig_error.add_subplot(212)
@@ -206,4 +217,20 @@ for i in range(np.size(training_mean, axis=1)):
 
 top.legend()
 bottom.legend()
+
+# Create the heat plot
+num_display_models = 1
+fig_heatmap = plt.figure(1)
+approx_plots = [None] * num_display_models
+real_plots = [None] * num_display_models
+num = 100 * num_display_models + 20
+
+for i in range(num_display_models):
+    approx_plots[i] = fig_heatmap.add_subplot(num + i + 1)
+    real_plots[i] = fig_heatmap.add_subplot(num + i + 2)
+
+for i in range(num_display_models):
+    approx_plots[i].imshow(np.transpose(approx_density_res[0][i, :, :]), interpolation='nearest')
+    real_plots[i].imshow(np.transpose(reference_density_res[0][i, :, :]), interpolation='nearest')
+
 plt.show()

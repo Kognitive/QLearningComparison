@@ -41,19 +41,19 @@ class CountBasedAdapter:
     def get_graph(self, states, actions):
 
         # use the internal density model
-        density_value, minimizer = self.density_model.get_graph(states, actions)
+        all_densities, density_value, minimizer = self.density_model.get_graph(states, actions)
 
         # create normal count based update
         cb_step_value = tf.get_variable("cb_step", dtype=tf.int64, shape=[], initializer=tf.zeros_initializer)
         cb_step_update = tf.count_up_to(cb_step_value, 2 ** 63 - 1)
 
         # Place for the saved evaluation
-        saved_evaluation = tf.get_variable("saved_evaluation", [self.num_models], trainable=False)
+        saved_evaluation = tf.get_variable("saved_evaluation", [self.num_models], trainable=False, dtype=tf.float32)
         save_evaluation = tf.assign(saved_evaluation, density_value)
 
         # retrieve the minimizer
         with tf.control_dependencies([save_evaluation]):
-            cb_update = tf.group([cb_step_update, minimizer])
+            cb_update = tf.group(cb_step_update, minimizer)
 
         # execute the minimizer in prior
         with tf.control_dependencies([cb_update]):
@@ -62,12 +62,9 @@ class CountBasedAdapter:
             if self.config['pseudo_count_type'] == 'prediction_gain':
                 c = tf.constant(self.config['c'], dtype=tf.float32)
                 prediction_gain = tf.log(density_value) - tf.log(saved_evaluation)
-                cb_values = tf.inv(tf.exp(c * tf.pow(cb_step_value, -0.5) * prediction_gain)- 1)
+                cb_values = 1 / (tf.exp(c * tf.pow(tf.sqrt(tf.cast(cb_step_value, tf.float32)), -1) * prediction_gain) - 1)
 
             elif self.config['pseudo_count_type'] == 'pseudo_count':
                 cb_values = saved_evaluation * (1 - density_value) / (density_value - saved_evaluation)
 
-            else:
-                raise RuntimeError("You have to use prediction_gain or pseudo_counts")
-
-        return cb_values, cb_step_value
+        return all_densities, cb_values, cb_step_value

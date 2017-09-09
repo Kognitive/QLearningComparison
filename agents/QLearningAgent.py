@@ -61,8 +61,8 @@ class QLearningAgent:
 
             # Define the learning rate and discount parameters a hyper parameters
             # of the Q-Learning algorithm itself
-            self.lr = tf.constant(1, tf.float64)
-            self.discount = tf.constant(0.99, tf.float64)
+            self.lr = tf.constant(1, tf.float32)
+            self.discount = tf.constant(0.99, tf.float32)
             self.use_best = tf.placeholder(tf.bool, shape=None)
 
             # Furthermore define the placeholders for the tuple used by one
@@ -78,11 +78,27 @@ class QLearningAgent:
             # select the actions it should use
             self.actions = tf.cond(self.use_best, lambda: tf.identity(self.best_actions), lambda: tf.identity(self.normal_actions))
 
-            perform_operation, self.next_states = environment.perform_actions(self.actions)
             self.rewards = environment.get_rewards()
 
-            if self.is_activated('pseudo-count') or self.is_activated('ucb'):
-                cb_density_values, cb_step_value, cb_update = self.cb_density.get_graph(self.current_states, self.actions)
+            if self.config['pseudo_count_type'] != 'count_based':
+
+                # create reference if necessary
+                self.ref_placeholder = tf.get_variable("ref_dens", [], trainable=False, initializer=tf.zeros_initializer)
+
+                # create the reference density model as well as the density for the learned model
+                with tf.variable_scope("opt_ref_dens"):
+                    self.all_densities, ref_density_values, ref_cb_value = self.ref_density.get_graph(self.current_states, self.actions)
+                    update_density_model = tf.assign(self.ref_placeholder, tf.reduce_sum(ref_density_values))
+
+                with tf.variable_scope("opt_approx_dens"):
+                    self.all_densities_model, cb_density_values, cb_step_value = self.cb_density.get_graph(self.current_states, self.actions)
+
+            else:
+                self.all_densities_model, cb_density_values, cb_step_value = self.ref_density.get_graph(self.current_states, self.actions)
+                self.all_densities = self.all_densities_model
+
+            with tf.control_dependencies([update_density_model]):
+                perform_operation, self.next_states = environment.perform_actions(self.actions)
 
             # shape the reward
             shaped_reward = tf.expand_dims(self.rewards, 1)
@@ -93,7 +109,7 @@ class QLearningAgent:
                 shaped_reward += tf.expand_dims(config['ucb-term'], axis=1)
 
             # the same for the pseudo-count term
-            if self.is_activated('pseudo-count'):
+            if self.is_activated('pseudo_count'):
                 config['pseudo-count-term'] = self.pseudo_count_term(config['beta'], cb_density_values)
                 shaped_reward += tf.expand_dims(config['pseudo-count-term'], axis=1)
 
@@ -122,10 +138,10 @@ class QLearningAgent:
         density_config = {'num_models': self.config['num_models'], 'action_space': self.action_space,
                           'state_space': self.state_space, 'num_hidden': 7}
 
-        if self.config['pseudo_count_type'] == 'count_based':
-            self.cb_density = CountBasedModel(density_config)
+        self.ref_density = CountBasedModel(density_config)
 
-        else:
+        if self.config['pseudo_count_type'] != 'count_based':
+
             # create the operations for the density model
             self.density_model = NADEModel(density_config)
             self.cb_density = CountBasedAdapter(self.config, self.density_model)
@@ -133,14 +149,14 @@ class QLearningAgent:
     def ucb_term(self, p_value, cb_step_value, cb_density_value):
 
         # Add UCB if necessary
-        p = tf.constant(p_value, dtype=tf.float64)
-        cb_step = tf.cast(cb_step_value, dtype=tf.float64)
-        cb_density = tf.cast(cb_density_value, dtype=tf.float64)
+        p = tf.constant(p_value, dtype=tf.float32)
+        cb_step = tf.cast(cb_step_value, dtype=tf.float32)
+        cb_density = tf.cast(cb_density_value, dtype=tf.float32)
         return tf.sqrt(tf.div(tf.multiply(p, tf.log(cb_step)), (cb_density + 1)))
 
     def pseudo_count_term(self, beta_value, cb_density_value):
 
-        beta = tf.constant(beta_value, dtype=tf.float64)
+        beta = tf.constant(beta_value, dtype=tf.float32)
         return beta / tf.sqrt(cb_density_value + 1)
 
     def default_value(self, param, value):
@@ -174,13 +190,13 @@ class QLearningAgent:
 
         # select based on the settings the correct optimization values
         if self.config['num_heads'] > 1 or self.is_activated('optimistic'):
-            init = tf.random_normal(sah_list, dtype=tf.float64) * 20.0 + 50.0
+            init = tf.random_normal(sah_list, dtype=tf.float32) * 20.0 + 50.0
         else:
-            init = tf.zeros(sah_list, dtype=tf.float64)
+            init = tf.zeros(sah_list, dtype=tf.float32)
 
         # create the initializer
         if optimistic:
-            one_table = tf.ones(sah_list, dtype=tf.float64)
+            one_table = tf.ones(sah_list, dtype=tf.float32)
             init += tf.multiply(one_table, 200.0)
 
         return init
@@ -194,7 +210,7 @@ class QLearningAgent:
         num_models = self.config['num_models']
 
         # create the q tensor
-        q_tensor = tf.get_variable("q_tensor", dtype=tf.float64, initializer=init)
+        q_tensor = tf.get_variable("q_tensor", dtype=tf.float32, initializer=init)
 
         # Create a sampler for the head
         random_head_num = tf.random_uniform([num_models], 0, num_heads, dtype=tf.int32)

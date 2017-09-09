@@ -17,7 +17,7 @@ N = 3
 env_build = GridWorld
 
 # create variable for the steps and do this amount of steps.
-num_models = 2
+num_models = 3
 show_models = 3
 num_episodes = 300
 num_steps = N + 9
@@ -219,15 +219,15 @@ top.legend()
 bottom.legend()
 
 # Create the heat plot
-num_display_models = 1
+num_display_models = 3
 fig_heatmap = plt.figure(1)
 approx_plots = [None] * num_display_models
 real_plots = [None] * num_display_models
 num = 100 * num_display_models + 20
 
 for i in range(num_display_models):
-    approx_plots[i] = fig_heatmap.add_subplot(num + i + 1)
-    real_plots[i] = fig_heatmap.add_subplot(num + i + 2)
+    approx_plots[i] = fig_heatmap.add_subplot(num + 2 * i + 1)
+    real_plots[i] = fig_heatmap.add_subplot(num + 2 * i + 2)
 
 for i in range(num_display_models):
     approx_plots[i].imshow(np.transpose(approx_density_res[0][i, :, :]), interpolation='nearest')

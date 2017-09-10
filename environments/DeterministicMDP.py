@@ -78,7 +78,7 @@ class DeterministicMDP:
         next_state = tf.gather_nd(self.transition, selection)
         rewards = tf.gather_nd(self.rewards, selection)
         ass_curr_state = tf.assign(self.current_states, next_state)
-        ass_coll_rewards = tf.assign(self.cum_rewards, self.cum_rewards + rewards)
+        ass_coll_rewards = tf.assign_add(self.cum_rewards, rewards)
         ass_eps_rewards = tf.assign(self.eps_rewards, rewards)
 
         # save the reward and update state

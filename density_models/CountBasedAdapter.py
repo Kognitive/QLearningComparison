@@ -36,19 +36,20 @@ class CountBasedAdapter:
 
         self.config = config
         self.num_models = config['num_models']
+        self.num_heads = config['num_heads']
         self.density_model = density_model
 
-    def get_graph(self, states, actions):
+    def get_graph(self, states: tf.Tensor, actions: tf.Tensor, head_mask_tensor: tf.Tensor):
 
         # use the internal density model
-        all_densities, density_value, minimizer = self.density_model.get_graph(states, actions)
+        all_densities, density_value, minimizer = self.density_model.get_graph(states, actions, head_mask_tensor)
 
         # create normal count based update
-        cb_step_value = tf.get_variable("cb_step", dtype=tf.int64, shape=[], initializer=tf.zeros_initializer)
-        cb_step_update = tf.count_up_to(cb_step_value, 2 ** 63 - 1)
+        cb_step_value = tf.get_variable("cb_step", dtype=tf.int64, shape=[self.num_models, self.num_heads], initializer=tf.ones_initializer)
+        cb_step_update = tf.assign_add(cb_step_value, head_mask_tensor)
 
         # Place for the saved evaluation
-        saved_evaluation = tf.get_variable("saved_evaluation", [self.num_models], trainable=False, dtype=tf.float32)
+        saved_evaluation = tf.get_variable("saved_evaluation", [self.num_models, self.num_heads], trainable=False, dtype=tf.float64)
         save_evaluation = tf.assign(saved_evaluation, density_value)
 
         # retrieve the minimizer
@@ -60,9 +61,9 @@ class CountBasedAdapter:
 
             # switch between two cases the first is the prediction gain
             if self.config['pseudo_count_type'] == 'prediction_gain':
-                c = tf.constant(self.config['c'], dtype=tf.float32)
+                c = tf.constant(self.config['c'], dtype=tf.float64)
                 prediction_gain = tf.log(density_value) - tf.log(saved_evaluation)
-                cb_values = 1 / (tf.exp(c * tf.pow(tf.sqrt(tf.cast(cb_step_value, tf.float32)), -1) * prediction_gain) - 1)
+                cb_values = 1 / (tf.exp(c * tf.pow(tf.sqrt(tf.cast(cb_step_value, tf.float64)), -1) * prediction_gain) - 1)
 
             elif self.config['pseudo_count_type'] == 'pseudo_count':
                 cb_values = saved_evaluation * (1 - density_value) / (density_value - saved_evaluation)

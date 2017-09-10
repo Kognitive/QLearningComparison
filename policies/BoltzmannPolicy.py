@@ -23,10 +23,10 @@ class BoltzmannPolicy(Policy):
 
         # create the categorical
         dist = tf.distributions.Categorical(probs=soft_max)
-        actions = tf.cast(dist.sample(), tf.int32)
+        actions = tf.cast(dist.sample(), tf.int64)
 
         # pass back the actions and corresponding q values
-        model_range = tf.range(0, config['num_models'], 1)
+        model_range = tf.range(0, config['num_models'], 1, dtype=tf.int64)
         indices = tf.stack([model_range, actions], axis=1)
         q_values = tf.gather_nd(q, indices)
         return actions, q_values

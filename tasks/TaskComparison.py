@@ -13,13 +13,13 @@ from environments.GridWorld import GridWorld
 # the number of models an average should be taken
 
 # ------------------------------ SETTINGS ------------------------------------
-N = 3
+N = 5
 env_build = GridWorld
 
 # create variable for the steps and do this amount of steps.
-num_models = 3
+num_models = 100
 show_models = 3
-num_episodes = 300
+num_episodes = 1000
 num_steps = N + 9
 
 graph = tf.Graph()
@@ -59,7 +59,12 @@ with graph.as_default():
 
         # define the different policies you want to try out
         policies = [
-             ['$\epsilon$-Greedy (0.001)', GreedyPolicy, {'action_space': action_space, 'optimistic': True, 'pseudo_count': True, 'pseudo_count_type': 'prediction_gain', 'beta': 10.0, 'c': 10.0}]
+             ['Greedy Policy', GreedyPolicy, {'action_space': action_space, 'num_heads': 1}],
+             ['Bootstrapped Greedy', GreedyPolicy, {'action_space': action_space, 'num_heads': 3}],
+             ['Bootstrapped Greedy with CB Model', GreedyPolicy, {'action_space': action_space, 'num_heads': 3, 'pseudo_count': True, 'pseudo_count_type': 'count_based', 'beta': 1}],
+             ['Bootstrapped Greedy with Prediction Gain Model', GreedyPolicy, {'action_space': action_space, 'num_heads': 3, 'pseudo_count': True, 'pseudo_count_type': 'prediction_gain', 'beta': 1, 'c': 1}],
+             ['Bootstrapped Greedy with Pseudo Count Model', GreedyPolicy, {'action_space': action_space, 'num_heads': 3, 'pseudo_count': True, 'pseudo_count_type': 'pseudo_count', 'beta': 1}]
+
              #['$\epsilon$-Greedy (0.001)', GreedyPolicy, {'action_space': action_space, 'optimistic': True, 'pseudo_count': True, 'pseudo_count_type': 'prediction_gain', 'beta': 10, 'c': 10}],
              #['$\epsilon$-Greedy (0.001)', GreedyPolicy, {'action_space': action_space, 'optimistic': True, 'pseudo_count': True, 'pseudo_count_type': 'pseudo_count', 'beta': 10}]
              #['$\epsilon$-Greedy (0.01)', EpsilonGreedyPolicy, {'action_space': action_space, 'epsilon': 0.01, 'pseudo_count': True, 'beta': 10}],
@@ -230,7 +235,7 @@ for i in range(num_display_models):
     real_plots[i] = fig_heatmap.add_subplot(num + 2 * i + 2)
 
 for i in range(num_display_models):
-    approx_plots[i].imshow(np.transpose(approx_density_res[0][i, :, :]), interpolation='nearest')
-    real_plots[i].imshow(np.transpose(reference_density_res[0][i, :, :]), interpolation='nearest')
+    approx_plots[i].imshow(np.transpose(approx_density_res[0][i, 0, :, :]), interpolation='nearest')
+    real_plots[i].imshow(np.transpose(reference_density_res[0][i, 0, :, :]), interpolation='nearest')
 
 plt.show()

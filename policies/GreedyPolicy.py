@@ -14,7 +14,7 @@ class GreedyPolicy(Policy):
         """
 
         # get the number of states
-        actions = tf.cast(tf.argmax(q, axis=1), tf.int32)
+        actions = tf.cast(tf.argmax(q, axis=1), tf.int64)
         max_q = tf.reduce_max(q, axis=1)
 
         return actions, max_q

@@ -17,6 +17,8 @@ class NADEModel:
         # save sizes of model
         self.config = config
         self.num_models = self.config['num_models']
+        self.num_heads = self.config['num_heads']
+        self.heads_per_sample = self.config['heads_per_sample']
         self.hidden_size = self.config['num_hidden']
         self.model_range = tf.range(0, self.config['num_models'], 1)
 
@@ -28,9 +30,9 @@ class NADEModel:
         self.D = self.lss + self.las
 
         # first of all initialize the weights
-        self.weights = self.init_weights(self.num_models, self.D, self.hidden_size)
+        self.weights = self.init_weights(self.num_models, self.num_heads, self.D, self.hidden_size)
 
-    def get_graph(self, states: tf.Tensor, actions: tf.Tensor):
+    def get_graph(self, states: tf.Tensor, actions: tf.Tensor, head_mask_tensor: tf.Tensor):
         """This method delivers the graph to the outside.
 
         Args:
@@ -41,23 +43,25 @@ class NADEModel:
         # convert actions and states
         binary_states = self.int_to_binary(self.lss, states)
         binary_actions = self.int_to_binary(self.las, actions)
-        conc = tf.cast(tf.concat([binary_states, binary_actions], axis=0), tf.float32)
+        conc = tf.cast(tf.concat([binary_states, binary_actions], axis=0), tf.float64)
 
         # access the weights one by one
         [W, V, b, c] = self.weights
 
         # first of all create a diagonal matrix mask for each column vector of self.v
-        weight_masked_matrix = tf.multiply(W, tf.expand_dims(tf.transpose(conc), 1))
-        hidden_layer = tf.sigmoid(tf.cumsum(weight_masked_matrix, axis=2, exclusive=True) + c)
+        expanded_mult_conc = tf.expand_dims(tf.expand_dims(tf.transpose(conc), 1), 1)
+        weight_masked_matrix = tf.multiply(W, expanded_mult_conc)
+        hidden_layer = tf.sigmoid(tf.cumsum(weight_masked_matrix, axis=3, exclusive=True) + c)
 
         # calc the distribution
-        pre_p_dist = tf.einsum('mdh,mhd->dm', V, hidden_layer) + tf.transpose(b)
+        calc_tensor = tf.einsum('mkdh,mkhd->dmk', V, hidden_layer)
+        pre_p_dist = calc_tensor + tf.transpose(b, [2, 0, 1])
         p_dist = tf.sigmoid(pre_p_dist)
 
         # one computational graph improvement
-        exp_conc = tf.expand_dims(conc, 0)
-        inv_v = tf.constant(1.0, dtype=tf.float32) - exp_conc
-        inv_p_dist = tf.constant(1.0, dtype=tf.float32) - p_dist
+        exp_conc = tf.expand_dims(conc, 2)
+        inv_v = tf.constant(1.0, dtype=tf.float64) - exp_conc
+        inv_p_dist = tf.constant(1.0, dtype=tf.float64) - p_dist
 
         # get log values
         log_iv_p_dist = tf.nn.softplus(pre_p_dist)
@@ -65,9 +69,9 @@ class NADEModel:
 
         # this gets the evaluation graph, if only one sample is supplied
         # self.evaluation_model = tf.reduce_prod(tf.pow(p_dist, self.v) + tf.pow(inv_p_dist, inv_v), axis=0)
-        density_value = tf.squeeze(tf.reduce_prod(tf.multiply(p_dist, exp_conc) + tf.multiply(inv_p_dist, inv_v), axis=1), 0)
-        nll = -tf.reduce_sum(-exp_conc * log_p_dist - inv_v * log_iv_p_dist)
-        minimizer = tf.train.AdamOptimizer(0.0001).minimize(nll, var_list=[W, V, b, c])
+        density_value = tf.reduce_prod(tf.multiply(p_dist, exp_conc) + tf.multiply(inv_p_dist, inv_v), axis=0)
+        nll = -tf.reduce_sum(tf.expand_dims(tf.cast(head_mask_tensor, tf.float64), 0) * (-exp_conc * log_p_dist - inv_v * log_iv_p_dist))
+        minimizer = tf.train.AdamOptimizer(0.00005).minimize(nll, var_list=[W, V, b, c])
 
         # return the model
         all_density_values = self.get_all_densities()
@@ -75,15 +79,15 @@ class NADEModel:
 
     def get_all_densities(self):
 
-        state_vector = self.int_to_binary(self.lss, tf.range(0, self.ss, 1, dtype=tf.int32))
-        action_vector = self.int_to_binary(self.las, tf.range(0, self.acts, 1, dtype=tf.int32))
+        state_vector = self.int_to_binary(self.lss, tf.range(0, self.ss, 1, dtype=tf.int64))
+        action_vector = self.int_to_binary(self.las, tf.range(0, self.acts, 1, dtype=tf.int64))
 
         # create the matrix containing all
         single_action_list = list()
         for ae in range(self.acts):
             current_action_vector = tf.expand_dims(action_vector[:, ae], 1)
             current_tiled_action_matrix = tf.tile(current_action_vector, [1, self.ss])
-            single_action_list.append(tf.cast(tf.concat([state_vector, current_tiled_action_matrix], axis=0), tf.float32))
+            single_action_list.append(tf.cast(tf.concat([state_vector, current_tiled_action_matrix], axis=0), tf.float64))
 
         # concatenate entlong the sample dimension
         conc = tf.concat(single_action_list, axis=1)
@@ -92,21 +96,21 @@ class NADEModel:
         [W, V, b, c] = self.weights
 
         # first of all create a diagonal matrix mask for each column vector of self.v
-        weight_masked_matrix = tf.einsum('mhd,dn->mhdn', W, conc)
-        hidden_layer = tf.sigmoid(tf.cumsum(weight_masked_matrix, axis=2, exclusive=True) + tf.expand_dims(c, 3))
+        weight_masked_matrix = tf.einsum('mkhd,dn->mkhdn', W, conc)
+        hidden_layer = tf.sigmoid(tf.cumsum(weight_masked_matrix, axis=3, exclusive=True) + tf.expand_dims(c, 4))
 
         # calc the distribution
-        pre_p_dist = tf.einsum('mdh,mhdn->mdn', V, hidden_layer) + b
+        pre_p_dist = tf.einsum('mkdh,mkhdn->mkdn', V, hidden_layer) + tf.expand_dims(b, 3)
         p_dist = tf.sigmoid(pre_p_dist)
 
         # one computational graph improvement
-        exp_conc = tf.expand_dims(conc, 0)
-        inv_v = tf.constant(1.0) - exp_conc
-        inv_p_dist = tf.constant(1.0) - p_dist
+        exp_conc = tf.expand_dims(tf.expand_dims(conc, 0), 0)
+        inv_v = tf.constant(1.0, dtype=tf.float64) - exp_conc
+        inv_p_dist = tf.constant(1.0, dtype=tf.float64) - p_dist
 
         # this gets the evaluation graph, if only one sample is supplied
-        pre_density_value = tf.reduce_prod(tf.multiply(p_dist, exp_conc) + tf.multiply(inv_p_dist, inv_v), axis=1)
-        all_density_values = tf.transpose(tf.reshape(pre_density_value, [self.config['num_models'], self.acts, self.ss]), [0, 2, 1])
+        pre_density_value = tf.reduce_prod(tf.multiply(p_dist, exp_conc) + tf.multiply(inv_p_dist, inv_v), axis=2)
+        all_density_values = tf.transpose(tf.reshape(pre_density_value, [self.num_models, self.num_heads, self.acts, self.ss]), [0, 1, 3, 2])
 
         return all_density_values
 
@@ -130,20 +134,21 @@ class NADEModel:
         # pass back the result
         return binary_values
 
-    def init_weights(self, num_models: int, input_size: int, hidden_size: int):
+    def init_weights(self, num_models: int, num_heads: int, input_size: int, hidden_size: int):
         """This method initializes the weights for all density models.
 
         Args:
             num_models: The number of different models
+            num_heads: The number of different heads
             input_size: The input dimension to this problem
             hidden_size: The number of neurons used inside of the hidden layer.
         """
 
         # create the vectors for V and W
-        W = self.init_single_weight([num_models, hidden_size, input_size], "W")
-        V = self.init_single_weight([num_models, input_size, hidden_size], "V")
-        b = self.init_single_weight([num_models, input_size, 1], "b")
-        c = self.init_single_weight([num_models, hidden_size, 1], "c")
+        W = self.init_single_weight([num_models, num_heads, hidden_size, input_size], "W")
+        V = self.init_single_weight([num_models, num_heads, input_size, hidden_size], "V")
+        b = self.init_single_weight([num_models, num_heads, input_size], "b")
+        c = self.init_single_weight([num_models, num_heads, hidden_size, 1], "c")
 
         # return all weights
         return [W, V, b, c]
@@ -157,4 +162,4 @@ class NADEModel:
             name: The name of this tensor
         """
 
-        return tf.Variable(tf.random_normal(size, mean=0.0, stddev=0.01, dtype=tf.float32), name=name, dtype=tf.float32)
+        return tf.Variable(tf.random_normal(size, mean=0.0, stddev=0.01, dtype=tf.float64), name=name, dtype=tf.float64)

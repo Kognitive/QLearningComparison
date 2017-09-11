@@ -2,6 +2,7 @@ import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
+import os
 
 from agents.QLearningAgent import QLearningAgent
 from policies.GreedyPolicy import GreedyPolicy
@@ -9,18 +10,21 @@ from policies.BoltzmannPolicy import BoltzmannPolicy
 from policies.EpsilonGreedyPolicy import EpsilonGreedyPolicy
 from environments.ExplorationChain import ExplorationChain
 from environments.GridWorld import GridWorld
+from environments.BinaryFlipEnvironment import BinaryFlipEnvironment
+
+os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
 # the number of models an average should be taken
 
 # ------------------------------ SETTINGS ------------------------------------
-N = 5
+N = 3
 env_build = GridWorld
 
 # create variable for the steps and do this amount of steps.
 num_models = 100
 show_models = 3
-num_episodes = 1000
-num_steps = N + 9
+num_episodes = 2000
+num_steps = 3 * N
 
 graph = tf.Graph()
 with graph.as_default():
@@ -59,11 +63,15 @@ with graph.as_default():
 
         # define the different policies you want to try out
         policies = [
-             ['Greedy Policy', GreedyPolicy, {'action_space': action_space, 'num_heads': 1}],
-             ['Bootstrapped Greedy', GreedyPolicy, {'action_space': action_space, 'num_heads': 3}],
-             ['Bootstrapped Greedy with CB Model', GreedyPolicy, {'action_space': action_space, 'num_heads': 3, 'pseudo_count': True, 'pseudo_count_type': 'count_based', 'beta': 1}],
-             ['Bootstrapped Greedy with Prediction Gain Model', GreedyPolicy, {'action_space': action_space, 'num_heads': 3, 'pseudo_count': True, 'pseudo_count_type': 'prediction_gain', 'beta': 1, 'c': 1}],
-             ['Bootstrapped Greedy with Pseudo Count Model', GreedyPolicy, {'action_space': action_space, 'num_heads': 3, 'pseudo_count': True, 'pseudo_count_type': 'pseudo_count', 'beta': 1}]
+            ['Bootstrapped Greedy', GreedyPolicy, {'action_space': action_space, 'num_heads': 20, 'heads_per_sample': 4}]
+            #["eps_greedy", EpsilonGreedyPolicy, {'action_space': action_space, 'epsilon': 0.05, 'pseudo_count': True, 'pseudo_count_type': 'prediction_gain', 'beta': 1, 'c': 1}]
+             #['Bootstrapped Greedy', GreedyPolicy, {'action_space': action_space, 'num_heads': 20, 'pseudo_count': True, 'pseudo_count_type': 'pseudo_count', 'beta': 1}],
+             #['Greedy Policy', GreedyPolicy, {'action_space': action_space, 'num_heads': 1}],
+             #['Bootstrapped Greedy with CB Model (1)', BoltzmannPolicy, {'temperature': 0.5, 'action_space': action_space, 'num_heads': 20, 'pseudo_count': True, 'pseudo_count_type': 'count_based', 'beta': 1}],
+             #['Bootstrapped Greedy with CB Model (0.5)', BoltzmannPolicy, {'temperature': 0.5, 'action_space': action_space, 'num_heads': 20, 'pseudo_count': True, 'pseudo_count_type': 'count_based', 'beta': 0.5}],
+             #['Bootstrapped Greedy with CB Model (3)', BoltzmannPolicy, {'temperature': 0.5, 'action_space': action_space, 'num_heads': 20, 'pseudo_count': True, 'pseudo_count_type': 'count_based', 'beta': 3}],
+             #['Bootstrapped Greedy with CB Model (5)', BoltzmannPolicy, {'temperature': 0.5, 'action_space': action_space, 'num_heads': 20, 'pseudo_count': True, 'pseudo_count_type': 'count_based', 'beta': 5}],
+             #['Bootstrapped Greedy with CB Model (10)', BoltzmannPolicy, {'temperature': 0.5, 'action_space': action_space, 'num_heads': 20, 'pseudo_count': True, 'pseudo_count_type': 'count_based', 'beta': 10}]
 
              #['$\epsilon$-Greedy (0.001)', GreedyPolicy, {'action_space': action_space, 'optimistic': True, 'pseudo_count': True, 'pseudo_count_type': 'prediction_gain', 'beta': 10, 'c': 10}],
              #['$\epsilon$-Greedy (0.001)', GreedyPolicy, {'action_space': action_space, 'optimistic': True, 'pseudo_count': True, 'pseudo_count_type': 'pseudo_count', 'beta': 10}]

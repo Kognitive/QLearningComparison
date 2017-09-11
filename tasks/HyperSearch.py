@@ -15,9 +15,10 @@ from environments.DeepSeaExploration import DeepSeaExploration
 from environments.GridWorld import GridWorld
 
 # the number of models an average should be taken
+os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
 # ------------------------------ SETTINGS ------------------------------------
-env_build = [[GridWorld, "grid_world", [3, 5, 10]], [BinaryFlipEnvironment, "bin_flip", [4, 8, 12]], [ExplorationChain, "exp_chain", [5, 10, 20, 30, 40, 50]], [DeepSeaExploration, "deep_sea", [5, 10, 20, 30, 40, 50]]]
+env_build = [[BinaryFlipEnvironment, "bin_flip", [4, 8, 12], lambda n: 2 * n], [DeepSeaExploration, "deep_sea", [5, 10, 20, 30, 40, 50], lambda n: n], [ExplorationChain, "exp_chain", [5, 10, 20, 30, 40, 50], lambda n: n + 9]]
 
 color_pool = [
     ['#1455bc', '#81b0f945'],
@@ -33,44 +34,40 @@ color_pool = [
 ]
 
 # define the policy batch size
-policy_batch_size = 8
+policy_batch_size = 20
 
 # define the different policies you want to try out
 policy_batches = [
     #["eps_greedy", EpsilonGreedyPolicy,
     #   {'epsilon': [0.001, 0.005, 0.01, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.5]}],
-    ["boltzmann", BoltzmannPolicy,
-        {'temperature': [0.001, 0.005, 0.01, 0.05, 0.1, 0.2, 0.3, 1, 10, 50, 100]}],
+    #["boltzmann", BoltzmannPolicy,
+    #    {'temperature': [0.001, 0.005, 0.01, 0.05, 0.1, 0.3, 1, 10, 50, 100]}],
+    ["deterministic_cb_pseudo_count", GreedyPolicy,
+     {'pseudo_count': [True], 'pseudo_count_type': ['count_based'], 'optimistic': [True, False],
+      'beta': [0.1, 0.25, 0.5, 0.75, 1, 1.5, 2, 5, 10]}],
 
     ["deterministic_bootstrapped", GreedyPolicy,
-        {'num_heads': [1, 3, 5, 7, 10, 15, 20]}],
-    ["eps_greedy_bootstrapped", EpsilonGreedyPolicy,
-        {'epsilon': [0.001, 0.005, 0.01, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.5], 'num_heads': [1, 3, 5, 7, 10, 15, 20]}],
-    ["boltzmann_bootstrapped", BoltzmannPolicy,
-        {'temperature': [0.001, 0.005, 0.01, 0.05, 0.1, 0.2, 0.3, 1, 10, 50, 100], 'num_heads': [1, 3, 5, 7, 10, 15, 20]}],
+     {'num_heads': [1, 3, 5, 7, 10, 15, 20]}],
 
-    ["deterministic_cb_pseudo_count", GreedyPolicy,
-        {'pseudo_count': [True], 'pseudo_count_type': ['count_based'], 'optimistic': [True, False], 'beta': [0.1, 0.25, 0.5, 0.75, 1, 1.5, 2, 5, 10]}],
-    ["deterministic_pg_pseudo_count", GreedyPolicy,
-     {'pseudo_count': [True], 'pseudo_count_type': ['prediction_gain'], 'optimistic': [True, False],
-      'beta': [0.1, 0.25, 0.5, 0.75, 1, 1.5, 2, 5, 10], 'c': [0.1, 0.25, 0.5, 0.75, 1, 1.5, 2, 5, 10]}],
-    ["deterministic_pc_pseudo_count", GreedyPolicy,
-         {'pseudo_count': [True], 'pseudo_count_type': ['pseudo_count'], 'optimistic': [True, False],
-          'beta': [0.1, 0.25, 0.5, 0.75, 1, 1.5, 2, 5, 10]}],
+    ["deterministic_bootstrapped_cb_pseudo_count", GreedyPolicy,
+        {'pseudo_count': [True], 'num_heads': [3, 5, 7], 'pseudo_count_type': ['count_based'], 'optimistic': [True, False], 'beta': [0.1, 0.5, 1, 5]}],
+
+     #["eps_greedy_bootstrapped", EpsilonGreedyPolicy,
+    #    {'epsilon': [0.001, 0.005, 0.01, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.5], 'num_heads': [1, 3, 5, 7, 10, 15, 20]}],
+    ["boltzmann_bootstrapped", BoltzmannPolicy,
+        {'temperature': [0.005, 0.05, 0.3, 1], 'num_heads': [3, 5, 7]}],
+
+   #["deterministic_pg_pseudo_count", GreedyPolicy,
+    # {'pseudo_count': [True], 'pseudo_count_type': ['prediction_gain'], 'optimistic': [True, False],
+    #  'beta': [0.1, 0.25, 0.5, 0.75, 1, 1.5, 2, 5, 10], 'c': [0.1, 0.25, 0.5, 0.75, 1, 1.5, 2, 5, 10]}],
+    #["deterministic_pc_pseudo_count", GreedyPolicy,
+    #     {'pseudo_count': [True], 'pseudo_count_type': ['pseudo_count'], 'optimistic': [True, False],
+    #      'beta': [0.1, 0.25, 0.5, 0.75, 1, 1.5, 2, 5, 10]}],
 
 
     ["deterministic_ucb", GreedyPolicy,
-        {'optimistic': [True, False], 'ucb': [True], 'p': [0.1, 0.25, 0.5, 0.75, 1, 1.5, 2, 5, 10]}],
-
-    ["deterministic_bootstrapped_cb_pseudo_count", GreedyPolicy,
-        {'pseudo_count': [True], 'num_heads': [1, 3, 5, 7, 10, 15, 20], 'pseudo_count_type': ['count_based'], 'optimistic': [True, False], 'beta': [0.1, 0.25, 0.5, 0.75, 1, 1.5, 2, 5, 10]}],
-    ["deterministic_bootstrapped_pg_pseudo_count", GreedyPolicy,
-     {'pseudo_count': [True], 'num_heads': [1, 3, 5, 7, 10, 15, 20], 'pseudo_count_type': ['prediction_gain'], 'optimistic': [True, False],
-      'beta': [0.1, 0.25, 0.5, 0.75, 1, 1.5, 2, 5, 10], 'c': [0.1, 0.25, 0.5, 0.75, 1, 1.5, 2, 5, 10]}],
-    ["deterministic_bootstrapped_pc_pseudo_count", GreedyPolicy,
-         {'pseudo_count': [True], 'num_heads': [1, 3, 5, 7, 10, 15, 20], 'pseudo_count_type': ['pseudo_count'], 'optimistic': [True, False],
-          'beta': [0.1, 0.25, 0.5, 0.75, 1, 1.5, 2, 5, 10]}]
-]
+        {'optimistic': [True, False], 'ucb': [True], 'p': [0.1, 0.25, 0.5, 0.75, 1, 1.5, 2, 5, 10]}]
+    ]
 
 batch_num = 0
 
@@ -79,9 +76,9 @@ best_va_policies = len(policy_batches) * [0]
 best_tr_policies = len(policy_batches) * [0]
 
 # create variable for the steps and do this amount of steps.
-num_models = 3
+num_models = 500
 show_models = 3
-num_episodes = 2000
+num_episodes = 1500
 learned_episodes = 200
 
 # control if the status should be displayed
@@ -104,9 +101,9 @@ if not os.path.exists(out_dir):
     os.makedirs(out_dir)
 
 # iterate over all environments
-for [env_build, env_name, range_N] in env_build:
+for [env_build, env_name, range_N, length] in env_build:
     for n in range_N:
-        num_steps = n + 9
+        num_steps = length(n)
 
         # use environment dir for graphs
         env_dir = out_dir + env_name + '_' + str(n) + '/'
@@ -344,10 +341,10 @@ for [env_build, env_name, range_N] in env_build:
                 #bottom.fill_between(n_range, val_mean[:episode] - va_confidence_offset, val_mean[:episode] + va_confidence_offset, color=color_pool[i][1])
 
                 label = "{} ({})".format(batch[i][0], batch[i][1])
-                handles_top = top.plot(training_mean[:episode, i], color_pool[i][0], label=label)
-                handles_bottom = bottom.plot(val_mean[:episode, i], color_pool[i][0], label=label)
+                handles_top = top.plot(training_mean[:episode, i], label=label)
+                handles_bottom = bottom.plot(val_mean[:episode, i], label=label)
 
-            bottom.legend(loc='lower right')
+            #bottom.legend(loc='lower right')
             plt.savefig(plt_path + name + "_" + str(sub_batch_num) + '.eps')
 
             if batch_num >= len(policy_batches):

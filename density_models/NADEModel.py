@@ -32,7 +32,7 @@ class NADEModel:
         # first of all initialize the weights
         self.weights = self.init_weights(self.num_models, self.num_heads, self.D, self.hidden_size)
 
-    def get_graph(self, states: tf.Tensor, actions: tf.Tensor, head_mask_tensor: tf.Tensor):
+    def get_graph(self, states: tf.Tensor, actions: tf.Tensor, head_mask_tensor: tf.Tensor, minimizer: bool):
         """This method delivers the graph to the outside.
 
         Args:
@@ -63,19 +63,25 @@ class NADEModel:
         inv_v = tf.constant(1.0, dtype=tf.float64) - exp_conc
         inv_p_dist = tf.constant(1.0, dtype=tf.float64) - p_dist
 
-        # get log values
-        log_iv_p_dist = tf.nn.softplus(pre_p_dist)
-        log_p_dist = tf.nn.softplus(-pre_p_dist)
-
         # this gets the evaluation graph, if only one sample is supplied
         # self.evaluation_model = tf.reduce_prod(tf.pow(p_dist, self.v) + tf.pow(inv_p_dist, inv_v), axis=0)
         density_value = tf.reduce_prod(tf.multiply(p_dist, exp_conc) + tf.multiply(inv_p_dist, inv_v), axis=0)
-        nll = -tf.reduce_sum(tf.expand_dims(tf.cast(head_mask_tensor, tf.float64), 0) * (-exp_conc * log_p_dist - inv_v * log_iv_p_dist))
-        minimizer = tf.train.AdamOptimizer(0.00005).minimize(nll, var_list=[W, V, b, c])
 
-        # return the model
-        all_density_values = self.get_all_densities()
-        return all_density_values, density_value, minimizer
+        # when a minimizer is needed as well
+        if minimizer:
+
+            # get log values
+            log_iv_p_dist = tf.nn.softplus(pre_p_dist)
+            log_p_dist = tf.nn.softplus(-pre_p_dist)
+
+            nll = -tf.reduce_sum(tf.expand_dims(tf.cast(head_mask_tensor, tf.float64), 0) * (-exp_conc * log_p_dist - inv_v * log_iv_p_dist))
+            minimizer = tf.train.AdamOptimizer(0.0001).minimize(nll, var_list=[W, V, b, c])
+
+            # return the model
+            return density_value, minimizer
+
+        else:
+            return density_value
 
     def get_all_densities(self):
 

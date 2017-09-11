@@ -98,7 +98,8 @@ class QLearningAgent:
 
                 model_vector_list = [tf.random_shuffle(model_vector) for _ in range(num_models)]
                 head_mask_tensor = tf.stack(model_vector_list, axis=0)
-                current_head_mask_tensor = tf.get_variable("current_head_mask_tensor", [num_models, num_heads], dtype=tf.int64)
+                head_mask_tensor = tf.Print(head_mask_tensor, [head_mask_tensor], "head_mask_tensor", summarize=100)
+                current_head_mask_tensor = tf.Variable(head_mask_tensor, dtype=tf.int64)
                 sample_new_head_mask = tf.assign(current_head_mask_tensor, head_mask_tensor)
                 dependency_list.append(sample_new_head_mask)
 
@@ -179,13 +180,14 @@ class QLearningAgent:
             mod_shaped_reward = tf.reshape(tiled_shaped_reward, mod_size)
 
             td_errors = mod_shaped_reward + self.discount * next_best_q_values - current_q_values
+            td_errors = tf.Print(td_errors, [td_errors], "td_errors", summarize=100)
             self.perform_operation = perform_operation
 
             # add dependencies
             with tf.control_dependencies([perform_operation]):
 
                 # define the q tensor update for the q values
-                self.q_tensor_update = tf.scatter_nd_add(q_tensor, current_q_indices, self.lr * td_errors), [tf.constant(0, dtype=tf.int64)]
+                self.q_tensor_update = tf.scatter_nd_add(q_tensor, current_q_indices, self.lr * td_errors)
 
     def init_submodules(self):
 
@@ -270,7 +272,7 @@ class QLearningAgent:
         # Create a sampler for the head
         random_head_num = tf.random_uniform([num_models], 0, num_heads, dtype=tf.int64)
         current_heads = tf.get_variable("current_head", initializer=random_head_num, dtype=tf.int64)
-        change_head = tf.assign(current_heads, random_head_num)
+        change_head = tf.assign(current_heads, tf.Print(random_head_num, [random_head_num], "random_head_num"))
 
         # pass back the q tensor and action to change the head
         indices = tf.stack([self.model_range, current_heads], axis=1)

@@ -56,12 +56,11 @@ class CountBasedAdapter:
             # switch between two cases the first is the prediction gain
             if self.config['pseudo_count_type'] == 'prediction_gain':
                 c = tf.constant(self.config['c'], dtype=tf.float64)
-                prediction_gain = tf.log(tf.Print(density_value, [density_value], "density", summarize=100)) - tf.log(tf.Print(old_density_value, [old_density_value], "old_density_value", summarize=100))
-                prediction_gain = tf.Print(prediction_gain, [prediction_gain], "prediction_gain", summarize=100)
+                prediction_gain = tf.log(density_value) - tf.log(old_density_value)
+                prediction_gain = prediction_gain
                 cb_values = 1 / (tf.exp(c * tf.pow(tf.sqrt(tf.cast(cb_step_value, tf.float64)), -1) * prediction_gain) - 1)
 
             elif self.config['pseudo_count_type'] == 'pseudo_count':
                 cb_values = old_density_value * (1 - density_value) / (density_value - old_density_value)
 
-        cb_values = tf.Print(cb_values, [cb_values], "cb_values", summarize=100)
         return all_densities, cb_values, cb_step_value

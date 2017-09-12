@@ -26,14 +26,13 @@ class QLearningAgent:
 
         # first of all save the configuration
         self.config = config
+        self.name = name
 
         # now the default values for some parameters can be defined.
         self.default_value('num_heads', 1)
         self.default_value('num_models', 0)
         self.default_value('optimistic', False)
         self.default_value('heads_per_sample', self.config['num_heads'])
-
-        # The first two dimensions have to be defined, because it's the policies
 
         # set the internal debug variable
         self.deb = debug
@@ -55,153 +54,207 @@ class QLearningAgent:
         # define the variable scope
         with tf.variable_scope(name):
 
-            self.init_submodules()
-
-            # determine the current q values and q value for the selected head
-            num_models = self.config['num_models']
-            self.model_range = tf.range(0, num_models, 1, dtype=tf.int64)
-
-            # Receive the initializer and use it to create a new
-            # Q-Tensor
+            # do some initialisation stuff
+            self.ref_density, self.cb_density = self.init_submodules()
             init = self.create_initializer()
-            q_tensor, q, current_heads, self.change_head = self.create_q_tensor(init)
+
+            # obtain the q_tensor, the active q function head, the indices of the selected heads
+            # as well as an operation to change the head
+            model_range = tf.range(0, num_models, dtype=tf.int64)
+            q_tensor, current_heads, change_head = self.create_q_tensor(init)
+            ind_active_heads, sample_heads = self.get_head_indices(num_models, num_heads, heads_per_sample)
+            self.q_tensor = q_tensor
+
+            # this action can be used to sample new heads
+            self.sample_heads = tf.group(change_head, sample_heads) if sample_heads is not None else change_head
 
             # Define the learning rate and discount parameters a hyper parameters
             # of the Q-Learning algorithm itself
-            self.lr = tf.constant(1, tf.float64)
-            self.discount = tf.constant(0.99, tf.float64)
+            self.lr = tf.Variable(1.0, dtype=tf.float64)
             self.use_best = tf.placeholder(tf.bool, shape=None)
+            discount = tf.constant(config['discount'], tf.float64)
 
-            # Furthermore define the placeholders for the tuple used by one
-            # learning step.
-            self.current_states = environment.get_current_state()
+            # Retrieve the current state from the environment and save it as an
+            # expanded vector
+            current_states = environment.get_current_state()
+            rewards = environment.get_rewards()
+            exp_current_states = tf.expand_dims(current_states, 1)
 
-            # retrieve the actions here
-            indices = tf.stack([self.model_range, self.current_states], axis=1)
-            q_vector = tf.gather_nd(q, indices)
+            # Get indices for easy access of the various models
+            ind_mod_head = tf.stack([model_range, current_heads], axis=1)
+            ind_mod_head_cstate = tf.concat([ind_mod_head, exp_current_states], axis=1)
+
+            # Access the q_vectors associated with the current state of each model.
+            # use these to select the best and the normal action using the supplied
+            # policies
+            q_vector = tf.gather_nd(q_tensor, ind_mod_head_cstate)
             self.best_actions, _ = GreedyPolicy().select_action(q_vector, None)
             self.normal_actions, _ = policy().select_action(q_vector, config)
 
-            # select the actions it should use
-            self.actions = tf.cond(self.use_best, lambda: tf.identity(self.best_actions), lambda: tf.identity(self.normal_actions))
-            self.rewards = environment.get_rewards()
+            # Select the actions conditioned on the
+            actions = tf.cond(self.use_best,
+                              lambda: tf.identity(self.best_actions),
+                              lambda: tf.identity(self.normal_actions))
 
-            # create a dependency list
-            dependency_list = list()
-
-            # create a sampling routine for the head mask tensor
-            if heads_per_sample != num_heads:
-
-                model_vector = tf.where(tf.range(0, num_heads) < heads_per_sample,
-                                        tf.ones(num_heads, dtype=tf.int64),
-                                        tf.zeros(num_heads, dtype=tf.int64))
-
-                model_vector_list = [tf.random_shuffle(model_vector) for _ in range(num_models)]
-                head_mask_tensor = tf.stack(model_vector_list, axis=0)
-                head_mask_tensor = tf.Print(head_mask_tensor, [head_mask_tensor], "head_mask_tensor", summarize=100)
-                current_head_mask_tensor = tf.Variable(head_mask_tensor, dtype=tf.int64)
-                sample_new_head_mask = tf.assign(current_head_mask_tensor, head_mask_tensor)
-                dependency_list.append(sample_new_head_mask)
-
-            else:
-                current_head_mask_tensor = tf.ones([num_models, num_heads], dtype=tf.int64)
-
-            # create reference if necessary
-            ref_placeholder = tf.get_variable("ref_dens", [], trainable=False, initializer=tf.zeros_initializer, dtype=tf.float64)
-
-            if self.is_activated('pseudo_count') and self.config['pseudo_count_type'] != 'count_based':
-
-                # create the reference density model as well as the density for the learned model
-                with tf.variable_scope("opt_ref_dens"):
-                    self.all_densities, ref_density_values, ref_cb_value = self.ref_density.get_graph(self.current_states, self.actions, current_head_mask_tensor)
-                    update_density_model = tf.assign(ref_placeholder, tf.reduce_sum(ref_density_values))
-                    dependency_list.append(update_density_model)
-
-                with tf.variable_scope("opt_approx_dens"):
-                    self.all_densities_model, cb_density_values, cb_step_value = self.cb_density.get_graph(self.current_states, self.actions, current_head_mask_tensor)
-
-                cb_placeholder = tf.get_variable("cb_dens", [], trainable=False, initializer=tf.zeros_initializer, dtype=tf.float64)
-                update_density_model = tf.assign(cb_placeholder, tf.reduce_sum(cb_density_values))
-                dependency_list.append(update_density_model)
-
-            else:
-                self.all_densities_model, cb_density_values, cb_step_value = self.ref_density.get_graph(self.current_states, self.actions, current_head_mask_tensor)
-                self.all_densities = self.all_densities_model
-                update_density_model = tf.assign(ref_placeholder, tf.reduce_sum(cb_density_values))
-                dependency_list.append(update_density_model)
+            # Get access to the density models
+            self.cb_complete_densities, cb_density_values, cb_step_value, \
+                self.ref_complete_densities, dependency_list = \
+                self.get_density_models(current_states, actions, ind_active_heads)
 
             # Reduce the density models according to the currently active heads
-            red_indices = tf.stack([self.model_range, current_heads], axis=1)
+            red_indices = tf.stack([model_range, current_heads], axis=1)
             red_cb_density_values = tf.gather_nd(cb_density_values, red_indices)
             red_cb_step_value = tf.gather_nd(cb_step_value, red_indices)
 
             with tf.control_dependencies(dependency_list):
-                perform_operation, self.next_states = environment.perform_actions(self.actions)
 
-            # shape the reward
-            shaped_reward = tf.expand_dims(self.rewards, 1)
+                # get operation to perform a action on the graph
+                self.apply_actions, next_states = environment.perform_actions(actions)
+                rewards = self.get_shaped_rewards(rewards, red_cb_step_value, red_cb_density_values)
 
-            # add ucb term if it is activated in the config
-            if self.is_activated('ucb'):
-                config['ucb-term'] = self.ucb_term(config['p'], red_cb_step_value, red_cb_density_values)
-                shaped_reward += tf.expand_dims(config['ucb-term'], axis=1)
+                self.q_tensor_update = self.get_q_tensor_update(
+                    ind_active_heads, q_tensor, discount, self.lr,
+                    current_states, actions, rewards, next_states, self.apply_actions)
 
-            # the same for the pseudo-count term
-            if self.is_activated('pseudo_count'):
-                config['pseudo-count-term'] = self.pseudo_count_term(config['beta'], red_cb_density_values)
-                shaped_reward += tf.expand_dims(config['pseudo-count-term'], axis=1)
+    def get_density_models(self, current_states, actions, ind_active_heads):
 
-            # create the matching indices for the head
-            head_indices = tf.cast(tf.where(tf.equal(current_head_mask_tensor, tf.constant(1, dtype=tf.int64))), tf.int64)
+        # access some vars from the config
+        num_models = self.config['num_models']
+        num_heads = self.config['num_heads']
+        heads_per_sample = self.config['heads_per_sample']
 
-            # we have to modify the states and actions a little bit
-            mod_size = [num_models * heads_per_sample]
-            tiled_states = tf.tile(tf.expand_dims(self.current_states, 1), [1, heads_per_sample])
-            tiled_actions = tf.tile(tf.expand_dims(self.actions, 1), [1, heads_per_sample])
-            mod_states = tf.expand_dims(tf.reshape(tiled_states, mod_size), 1)
-            mod_actions = tf.expand_dims(tf.reshape(tiled_actions, mod_size), 1)
+        model_range = tf.range(0, num_models, dtype=tf.int64)
+        ind_models = self.duplicate_each_element(model_range, heads_per_sample)
 
-            current_q_indices = tf.concat([head_indices, mod_states, mod_actions], axis=1)
-            current_q_values = tf.gather_nd(q_tensor, current_q_indices)
+        # This reference is necessary to evaluate the graph for the density model
+        cb_var = tf.get_variable("real_var", [], initializer=tf.zeros_initializer, dtype=tf.float64)
 
-            # do the same modulating for the next states as well
-            tiled_next_states = tf.tile(tf.expand_dims(self.next_states, 1), [1, heads_per_sample])
-            mod_next_states = tf.expand_dims(tf.reshape(tiled_next_states, mod_size), 1)
+        if ind_active_heads is not None:
+            mask_indices = tf.stack([ind_models, ind_active_heads], axis=1)
+            current_head_mask_tensor = tf.scatter_nd(mask_indices,
+                                                     tf.ones([num_models * heads_per_sample], dtype=tf.int64),
+                                                     shape=[num_models, num_heads])
+        else:
+            current_head_mask_tensor = tf.ones([num_models, num_heads], dtype=tf.int64)
 
-            # determine the q values for the next state and the selected head
-            next_q_vector_indices = tf.concat([head_indices, mod_next_states], axis=1)
-            next_q_vectors = tf.gather_nd(q_tensor, next_q_vector_indices)
+        # save the assign operations in a dependency list
+        dependency_list = list()
 
-            # get vector of best actions for each head
-            next_best_q_values = tf.reduce_max(next_q_vectors, axis=1)
+        with tf.variable_scope("opt_cb_dens"):
+            cb_complete_densities, cb_density_values, cb_step_value = \
+                self.ref_density.get_graph(current_states, actions, current_head_mask_tensor)
+            update_cb_density_model = tf.assign(cb_var, tf.reduce_sum(cb_density_values))
+            dependency_list.append(update_cb_density_model)
+            ref_complete_densities = cb_complete_densities
 
-            # determine the TD-Error for the Q function
-            tiled_shaped_reward = tf.tile(shaped_reward, [1, heads_per_sample])
-            mod_shaped_reward = tf.reshape(tiled_shaped_reward, mod_size)
+        # check whether a approximate density model should be activated
+        if self.is_activated('pseudo_count') and self.config['pseudo_count_type'] != 'count_based':
 
-            td_errors = mod_shaped_reward + self.discount * next_best_q_values - current_q_values
-            td_errors = tf.Print(td_errors, [td_errors], "td_errors", summarize=100)
-            self.perform_operation = perform_operation
+            approx_var = tf.get_variable("approx_var", [], initializer=tf.zeros_initializer, dtype=tf.float64)
+            ref_complete_densities = cb_complete_densities
 
-            # add dependencies
-            with tf.control_dependencies([perform_operation]):
+            with tf.variable_scope("opt_approx_dens"):
+                approx_complete_densities, approx_density_values, approx_step_value = \
+                    self.cb_density.get_graph(current_states, actions, current_head_mask_tensor)
+                update_approx_density_model = tf.assign(approx_var, tf.reduce_sum(approx_density_values))
+                dependency_list.append(update_approx_density_model)
 
-                # define the q tensor update for the q values
-                self.q_tensor_update = tf.scatter_nd_add(q_tensor, current_q_indices, self.lr * td_errors)
+                # use the approximate as the reference model
+                cb_complete_densities = approx_complete_densities
+                cb_density_values = approx_density_values
+                cb_step_value = approx_step_value
+
+        return cb_complete_densities, cb_density_values, cb_step_value, ref_complete_densities, dependency_list
+
+    def get_shaped_rewards(self, rewards, current_steps, current_state_action_counts):
+
+        # shape the reward
+        shaped_rewards = rewards
+
+        # add ucb term if it is activated in the config
+        if self.is_activated('ucb'):
+            self.config['ucb-term'] = self.ucb_term(self.config['p'], current_steps, current_state_action_counts)
+            shaped_rewards += self.config['ucb-term']
+
+        # the same for the pseudo-count term
+        if self.is_activated('pseudo_count'):
+            self.config['pseudo-count-term'] = self.pseudo_count_term(self.config['beta'], current_state_action_counts)
+            shaped_rewards += self.config['pseudo-count-term']
+
+        return shaped_rewards
+
+    def get_q_tensor_update(self, ind_heads, q_tensor, discount, lr, current_states, actions, rewards, next_states, apply_actions):
+
+        num_models = self.config['num_models']
+        num_heads = self.config['num_heads']
+        heads_per_sample = self.config['heads_per_sample']
+        model_range = tf.range(0, num_models, dtype=tf.int64)
+
+        # we have to modify the states and actions a little bit
+        ind_models = self.duplicate_each_element(model_range, heads_per_sample)
+        ind_states = self.duplicate_each_element(current_states, heads_per_sample)
+        ind_actions = self.duplicate_each_element(actions, heads_per_sample)
+        ind_next_states = self.duplicate_each_element(next_states, heads_per_sample)
+
+        if ind_heads == None:
+            ind_heads = tf.tile(tf.range(0, num_heads, dtype=tf.int64), [num_models])
+
+        # obtain current q values
+        ind_current_q_values = tf.stack([ind_models, ind_heads, ind_states, ind_actions], axis=1)
+        current_q_values = tf.gather_nd(q_tensor, ind_current_q_values)
+
+        # obtain the best q function available for the next state
+        ind_next_q_vectors = tf.stack([ind_models, ind_heads, ind_next_states], axis=1)
+        next_q_vectors = tf.gather_nd(q_tensor, ind_next_q_vectors)
+        next_q_values = tf.reduce_max(next_q_vectors, axis=1)
+
+        # duplicate the rewards as well
+        mod_shaped_rewards = self.duplicate_each_element(rewards, heads_per_sample)
+        td_errors = mod_shaped_rewards + discount * next_q_values - current_q_values
+
+        # add dependencies
+        with tf.control_dependencies([apply_actions]):
+
+            # define the q tensor update for the q values
+            return tf.scatter_nd_add(q_tensor, ind_current_q_values, lr * td_errors)
+
+    def duplicate_each_element(self, vector: tf.Tensor, repeat: int) -> tf.Tensor:
+        """This method takes a vector and duplicates each element the number of times supplied."""
+
+        height = tf.shape(vector)[0]
+        exp_vector = tf.expand_dims(vector, 1)
+        tiled_states = tf.tile(exp_vector, [1, repeat])
+        mod_vector = tf.reshape(tiled_states, [repeat * height])
+        return mod_vector
+
+    def get_head_indices(self, num_models, num_heads, heads_per_sample):
+
+        if heads_per_sample == num_heads: return None, None
+
+        head_range = tf.range(0, num_heads, dtype=tf.int64)
+        randomized_head_range_list = [tf.random_shuffle(head_range)[:heads_per_sample] for i in range(num_models)]
+        head_indices = tf.concat(randomized_head_range_list, axis=0)
+        current_head_indices = tf.Variable(head_indices, dtype=tf.int64)
+        sample_head_indices = tf.assign(current_head_indices, head_indices)
+
+        return current_head_indices, sample_head_indices
 
     def init_submodules(self):
 
         density_config = {'num_models': self.config['num_models'], 'num_heads': self.config['num_heads'],
                           'action_space': self.action_space,  'state_space': self.state_space,
-                          'num_hidden': 7, 'heads_per_sample': self.config['heads_per_sample']}
+                          'num_hidden': 20, 'heads_per_sample': self.config['heads_per_sample']}
 
-        self.ref_density = CountBasedModel(density_config)
+        ref_density = CountBasedModel(density_config)
+        cb_density = None
 
         if self.is_activated('pseudo_count') and self.config['pseudo_count_type'] != 'count_based':
 
             # create the operations for the density model
-            self.density_model = NADEModel(density_config)
-            self.cb_density = CountBasedAdapter(self.config, self.density_model)
+            density_model = NADEModel(density_config)
+            cb_density = CountBasedAdapter(self.config, density_model)
+
+        return ref_density, cb_density
 
     def ucb_term(self, p_value, cb_step_value, cb_density_value):
 
@@ -238,23 +291,25 @@ class QLearningAgent:
         """
 
         # access the number of heads inside of the config
-        num_heads = self.config['num_heads']
-        optimistic = self.config['optimistic']
         num_models = self.config['num_models']
+        num_heads = self.config['num_heads']
 
         # extract space sizes
         sah_list = [num_models, num_heads, self.state_space.get_size(), self.action_space.get_size()]
 
         # select based on the settings the correct optimization values
-        if self.config['num_heads'] > 1 or self.is_activated('optimistic'):
-            init = tf.random_normal(sah_list, dtype=tf.float64) * 20.0 + 50.0
-        else:
+        if self.is_activated('init_zero'):
             init = tf.zeros(sah_list, dtype=tf.float64)
 
-        # create the initializer
-        if optimistic:
-            one_table = tf.ones(sah_list, dtype=tf.float64)
-            init += tf.multiply(one_table, 200.0)
+        elif not self.is_activated('optimistic'):
+            mu = (self.config['min_q'] + self.config['max_q']) / 2
+            sigma = tf.maximum(self.config['max_q'] - mu, 20)
+            init = tf.random_uniform(sah_list, -20, 20, dtype=tf.float64)
+
+        elif self.is_activated('optimistic'):
+            sigma = 10
+            mu = self.config['max_q'] + sigma
+            init = tf.random_normal(sah_list, dtype=tf.float64) * sigma + mu
 
         return init
 
@@ -263,8 +318,8 @@ class QLearningAgent:
         head, changeable using a sample mechanism."""
 
         # save the variable internally
-        num_heads = self.config['num_heads']
         num_models = self.config['num_models']
+        num_heads = self.config['num_heads']
 
         # create the q tensor
         q_tensor = tf.get_variable("q_tensor", dtype=tf.float64, initializer=init)
@@ -272,50 +327,12 @@ class QLearningAgent:
         # Create a sampler for the head
         random_head_num = tf.random_uniform([num_models], 0, num_heads, dtype=tf.int64)
         current_heads = tf.get_variable("current_head", initializer=random_head_num, dtype=tf.int64)
-        change_head = tf.assign(current_heads, tf.Print(random_head_num, [random_head_num], "random_head_num"))
+        change_head = tf.assign(current_heads, random_head_num)
 
-        # pass back the q tensor and action to change the head
-        indices = tf.stack([self.model_range, current_heads], axis=1)
-        q_functions = tf.gather_nd(q_tensor, indices)
-
-        return q_tensor, q_functions, current_heads, change_head
-
-    def choose_best_action(self, cs):
-
-        # apply defined policies_nn from the outside
-        return self.session.run(self.best_actions, feed_dict={self.current_states: [cs]})
-
-    def choose_action(self, cs):
-
-        # apply defined policies_nn from the outside
-        _, res = self.session.run(self.normal_actions, feed_dict={self.current_states: [cs]})
-        return res
+        return q_tensor, current_heads, change_head
 
     def sample_head(self):
         """This method can be used to sample a new head for action selection. This is
         the mechanism, which effectively drives the deep exploration in the example."""
 
-        self.session.run(self.change_head)
-
-    def learn_tuple(self, learning_rate, discount, current_state, reward, action, next_state):
-        """This method gets used to learn a new tuple and insert in the internal model.
-
-        Args:
-            learning_rate: The learning rate to use.
-            discount: This determines the horizon the agent thinks about as the most important one.
-            current_state: Pass in the current state of the agent.
-            reward: The reward for the action in current_state
-            action: The action which was taken.
-            next_state: The state the agent is now in.
-        """
-
-        # update the table correctly
-        self.session.run(self.q_tensor_update, feed_dict=
-                                 {
-                                     self.lr: learning_rate,
-                                     self.discount: discount,
-                                     self.current_states: [current_state],
-                                     self.rewards: reward,
-                                     self.actions: action,
-                                     self.next_states: next_state
-                                 })
+        self.session.run(self.sample_heads)

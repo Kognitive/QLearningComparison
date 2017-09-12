@@ -32,6 +32,8 @@ class DeterministicMDP:
         self.action_space = action_space
         self.state_space = state_space
         self.name = name
+        self.q_function = None
+        self.optimal_reward = None
 
         # Do some assertions on the passed reward and transition functions.
         # They need to have the height of the state space and the width of
@@ -90,38 +92,43 @@ class DeterministicMDP:
     def get_optimal(self, steps, discount):
         """This gets the optimal reward using value iteration."""
 
-        state_size = self.state_space.get_size()
-        action_size = self.action_space.get_size()
+        if self.q_function is None:
 
-        # init q function
-        q_shape = (state_size, action_size)
-        q_function = -np.ones(q_shape)
-        next_q_function = np.zeros(q_shape)
+            state_size = self.state_space.get_size()
+            action_size = self.action_space.get_size()
 
-        # repeat until converged
-        while np.max(np.abs(q_function - next_q_function)) >= 0.001:
+            # init q function
+            q_shape = (state_size, action_size)
+            q_function = -np.ones(q_shape)
+            next_q_function = np.zeros(q_shape)
 
-            # create next bootstrapped q function
-            q_function = next_q_function
-            bootstrapped_q_function = np.empty(q_shape)
+            # repeat until converged
+            while np.max(np.abs(q_function - next_q_function)) >= 0.001:
 
-            # iterate over all fields
-            for s in range(state_size):
-                for a in range(action_size):
-                    next_state = self.transition_function[s, a]
-                    bootstrapped_q_function[s, a] = np.max(q_function[next_state, :])
+                # create next bootstrapped q function
+                q_function = next_q_function
+                bootstrapped_q_function = np.empty(q_shape)
 
-            # update the q function correctly
-            next_q_function = self.reward_function + discount * bootstrapped_q_function
+                # iterate over all fields
+                for s in range(state_size):
+                    for a in range(action_size):
+                        next_state = self.transition_function[s, a]
+                        bootstrapped_q_function[s, a] = np.max(q_function[next_state, :])
 
-        # create new environment and simulate
-        optimal_policy = np.argmax(q_function, axis=1)
-        reward = 0
-        current_state = self.initial_state
+                # update the q function correctly
+                next_q_function = self.reward_function + discount * bootstrapped_q_function
 
-        # run for specified number of steps
-        for k in range(steps):
-            reward += self.reward_function[current_state, optimal_policy[current_state]]
-            current_state = self.transition_function[current_state, optimal_policy[current_state]]
+            # create new environment and simulate
+            optimal_policy = np.argmax(q_function, axis=1)
+            reward = 0
+            current_state = self.initial_state
 
-        return reward
+            # run for specified number of steps
+            for k in range(steps):
+                reward += self.reward_function[current_state, optimal_policy[current_state]]
+                current_state = self.transition_function[current_state, optimal_policy[current_state]]
+
+            self.optimal_reward = reward
+            self.q_function = q_function
+
+        return self.optimal_reward, np.min(self.q_function), np.max(self.q_function)

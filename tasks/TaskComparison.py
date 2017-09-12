@@ -11,6 +11,7 @@ from policies.EpsilonGreedyPolicy import EpsilonGreedyPolicy
 from environments.ExplorationChain import ExplorationChain
 from environments.GridWorld import GridWorld
 from environments.BinaryFlipEnvironment import BinaryFlipEnvironment
+from plots.MultiDimensionalHeatmap import MultiDimensionalHeatmap
 
 os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
@@ -23,8 +24,8 @@ env_build = GridWorld
 # create variable for the steps and do this amount of steps.
 num_models = 100
 show_models = 3
-num_episodes = 2000
-num_steps = 3 * N
+num_episodes = 1000
+num_steps = N + 30
 
 graph = tf.Graph()
 with graph.as_default():
@@ -63,8 +64,25 @@ with graph.as_default():
 
         # define the different policies you want to try out
         policies = [
-            ['Bootstrapped Greedy', GreedyPolicy, {'action_space': action_space, 'num_heads': 20, 'heads_per_sample': 4}]
-            #["eps_greedy", EpsilonGreedyPolicy, {'action_space': action_space, 'epsilon': 0.05, 'pseudo_count': True, 'pseudo_count_type': 'prediction_gain', 'beta': 1, 'c': 1}]
+            #['Bootstrapped 20', GreedyPolicy,
+            # {'discount': 0.99, 'num_heads': 20, 'heads_per_sample': 15}],
+            #['Bootstrapped 10', GreedyPolicy,
+             #{'discount': 0.99, 'num_heads': 10, 'heads_per_sample': 8}],
+            #['Bootstrapped 5', GreedyPolicy,
+             #{'discount': 0.99, 'num_heads': 5, 'heads_per_sample': 5}],
+            #['Bootstrapped 3', GreedyPolicy,
+             #{'discount': 0.99, 'num_heads': 3, 'heads_per_sample': 3}]
+            #['Bootstrapped Greedy (5/5)', GreedyPolicy, {'num_heads': 5, 'heads_per_sample': 5, 'discount': 0.99}],
+            #['Bootstrapped Greedy (4/5)', GreedyPolicy, {'num_heads': 5, 'heads_per_sample': 4, 'discount': 0.99}],
+            #['Bootstrapped Greedy (3/5)', GreedyPolicy, {'num_heads': 5, 'heads_per_sample': 3, 'discount': 0.99}],
+            #['Bootstrapped Greedy (2/5)', GreedyPolicy, {'num_heads': 5, 'heads_per_sample': 2, 'discount': 0.99}],
+            #['Bootstrapped Greedy (1/5)', GreedyPolicy, {'num_heads': 5, 'heads_per_sample': 1, 'discount': 0.99}]
+            ["eps_greedy", EpsilonGreedyPolicy, {'action_space': action_space, 'epsilon': 0.3, 'discount': 0.99, 'num_heads': 5}],
+            ["eps_greedy", EpsilonGreedyPolicy, {'action_space': action_space, 'epsilon': 0.2, 'discount': 0.99, 'num_heads': 5}],
+            ["eps_greedy", EpsilonGreedyPolicy, {'action_space': action_space, 'epsilon': 0.1, 'discount': 0.99, 'num_heads': 5}],
+            ["eps_greedy", EpsilonGreedyPolicy, {'action_space': action_space, 'epsilon': 0.05, 'discount': 0.99, 'num_heads': 5}],
+            ["eps_greedy", EpsilonGreedyPolicy, {'action_space': action_space, 'epsilon': 0.01, 'discount': 0.99, 'num_heads': 5}],
+            ["boltzmann", BoltzmannPolicy, {'action_space': action_space, 'temperature': 0.5, 'discount': 0.99, 'num_heads': 5}]
              #['Bootstrapped Greedy', GreedyPolicy, {'action_space': action_space, 'num_heads': 20, 'pseudo_count': True, 'pseudo_count_type': 'pseudo_count', 'beta': 1}],
              #['Greedy Policy', GreedyPolicy, {'action_space': action_space, 'num_heads': 1}],
              #['Bootstrapped Greedy with CB Model (1)', BoltzmannPolicy, {'temperature': 0.5, 'action_space': action_space, 'num_heads': 20, 'pseudo_count': True, 'pseudo_count_type': 'count_based', 'beta': 1}],
@@ -100,7 +118,7 @@ with graph.as_default():
 
         # Determine the agent count
         num_policies = len(policies)
-        optimal_ih_rew = env.get_optimal(num_steps, 0.99)
+        optimal_ih_rew, min_q, max_q = env.get_optimal(num_steps, 0.99)
 
         # --------------------------------------------------------------------------
 
@@ -117,6 +135,9 @@ with graph.as_default():
             policy = pe[1]
             policy_config = pe[2]
             policy_config['num_models'] = num_models
+            policy_config['min_q'] = min_q
+            policy_config['max_q'] = max_q
+            policy_config['action_space'] = action_space
 
             current_env = env_build(unique_name, [num_models], N)
             environments.append(current_env)
@@ -150,7 +171,7 @@ with graph.as_default():
 
         # retrieve the learn operations
         update_and_receive_rewards = [agent.q_tensor_update for agent in agents]
-        perform_ops = [agent.perform_operation for agent in agents]
+        perform_ops = [agent.apply_actions for agent in agents]
 
         reset_ops = [envs.reset_op for envs in environments]
         cum_rew_ops = [envs.cum_rewards for envs in environments]
@@ -205,17 +226,20 @@ with graph.as_default():
             val_var[episode, :] = np.var(val_rewards[episode, :, :], axis=1)
 
         # Create Q Value Function plots
-        approx_density = [agent.all_densities_model for agent in agents]
-        reference_density = [agent.all_densities for agent in agents]
+        approx_density = [[agent.cb_complete_densities, agent.ref_complete_densities] for agent in agents]
+        q_functions = [[agent.q_tensor] for agent in agents]
+
+        if approx_density[0][0] == approx_density[0][1]:
+            approx_density = [[a] for [a, b] in approx_density]
 
         feed_dict = {}
         for agent in agents:
             feed_dict[agent.use_best] = True
 
-        approx_density_res, reference_density_res = sess.run([approx_density, reference_density], feed_dict)
+        [density_res, q_func_res] = sess.run([approx_density, q_functions], feed_dict)
 
 # Create first plot
-fig_error = plt.figure(0)
+fig_error = plt.figure("Error")
 top = fig_error.add_subplot(211)
 bottom = fig_error.add_subplot(212)
 top.set_title("Training Error")
@@ -231,19 +255,12 @@ for i in range(np.size(training_mean, axis=1)):
 top.legend()
 bottom.legend()
 
-# Create the heat plot
-num_display_models = 3
-fig_heatmap = plt.figure(1)
-approx_plots = [None] * num_display_models
-real_plots = [None] * num_display_models
-num = 100 * num_display_models + 20
+for i in range(len(agents)):
+    heatmap = MultiDimensionalHeatmap(len(density_res[i]), "Agent", i, [5, policies[i][2]['num_heads'], state_space.get_size(), action_space.get_size()], 0.8)
+    heatmap.plot(density_res[i])
 
-for i in range(num_display_models):
-    approx_plots[i] = fig_heatmap.add_subplot(num + 2 * i + 1)
-    real_plots[i] = fig_heatmap.add_subplot(num + 2 * i + 2)
+for i in range(len(agents)):
+    heatmap = MultiDimensionalHeatmap(len(q_func_res[i]), "Agent", i + len(agents), [5, policies[i][2]['num_heads'], state_space.get_size(), action_space.get_size()], 0.8)
+    heatmap.plot(q_func_res[i])
 
-for i in range(num_display_models):
-    approx_plots[i].imshow(np.transpose(approx_density_res[0][i, 0, :, :]), interpolation='nearest')
-    real_plots[i].imshow(np.transpose(reference_density_res[0][i, 0, :, :]), interpolation='nearest')
-
-plt.show()
+plt.show(block = True)

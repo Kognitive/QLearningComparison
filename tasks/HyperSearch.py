@@ -18,7 +18,9 @@ from environments.GridWorld import GridWorld
 os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
 # ------------------------------ SETTINGS ------------------------------------
-env_build = [[BinaryFlipEnvironment, "bin_flip", [4, 8, 12], lambda n: 2 * n], [DeepSeaExploration, "deep_sea", [5, 10, 20, 30, 40, 50], lambda n: n], [ExplorationChain, "exp_chain", [5, 10, 20, 30, 40, 50], lambda n: n + 9]]
+env_build = [[BinaryFlipEnvironment, "bin_flip", [4, 8, 12], lambda n: 2 * n],
+             [DeepSeaExploration, "deep_sea", [5, 10, 20, 30, 40, 50], lambda n: n],
+             [ExplorationChain, "exp_chain", [5, 10, 20, 30, 40, 50], lambda n: n + 9]]
 
 color_pool = [
     ['#1455bc', '#81b0f945'],
@@ -80,6 +82,9 @@ num_models = 500
 show_models = 3
 num_episodes = 1500
 learned_episodes = 200
+
+save_density = True
+density_episodes = 50
 
 # control if the status should be displayed
 status = True
@@ -178,7 +183,7 @@ for [env_build, env_name, range_N, length] in env_build:
 
                     # Determine the agent count
                     num_policies = len(batch)
-                    optimal_ih_rew = env.get_optimal(num_steps, 0.99)
+                    optimal_ih_rew, min_q, max_q = env.get_optimal(num_steps, 0.99)
 
                     # --------------------------------------------------------------------------
 
@@ -196,6 +201,9 @@ for [env_build, env_name, range_N, length] in env_build:
                         policy_config = pe[3]
                         policy_config['num_models'] = num_models
                         policy_config['action_space'] = action_space
+                        policy_config['min_q'] = min_q
+                        policy_config['max_q'] = max_q
+                        policy_config['discount'] = 0.99
 
                         current_env = env_build(unique_name, [num_models], n)
                         environments.append(current_env)
@@ -229,7 +237,7 @@ for [env_build, env_name, range_N, length] in env_build:
 
                     # retrieve the learn operations
                     update_and_receive_rewards = [agent.q_tensor_update for agent in agents]
-                    perform_ops = [agent.perform_operation for agent in agents]
+                    perform_ops = [agent.apply_actions for agent in agents]
 
                     reset_ops = [envs.reset_op for envs in environments]
                     cum_rew_ops = [envs.cum_rewards for envs in environments]
@@ -287,6 +295,8 @@ for [env_build, env_name, range_N, length] in env_build:
                             mean_important_episodes = np.mean(important_episodes, axis=1)
                             if np.min(mean_important_episodes, axis=0) >= 0.99:
                                 break
+
+                        #if save_density and (episode - 1) % density_episodes == 0:
 
             # save the collected reward
             np.save(env_dir + 'npy_rewards/tr_' + name + "_" + str(sub_batch_num) + '_mean.npy', training_mean)

@@ -21,34 +21,37 @@
 # SOFTWARE.
 
 import numpy as np
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import matplotlib.animation as manimation
+
+from plots.ManagedPlot import ManagedPlot
 
 
-class MultiDimensionalHeatmap:
+class MultiDimensionalHeatmap(ManagedPlot):
 
-    def __init__(self, num_densities: int, display_namme: str, number: int, dims: list, height_width_ratio: float):
+    def __init__(self, unique_name: str, title: str, num_densities: int, dims: list, height_width_ratio: float, color: str):
         """Creates a new DensityModelPlot. Therefore you have to specify
         how much different densities the plot should handle.
 
         Args:
-            num_densities: The number of densities to show.
-            name: The unique name of the agent
-            dims: The dimension of the input tensor
+            unique_name: The unique identifier
+            config:
+                num_densities: The number of densities to show.
+                color: Specify the color, which should be used for
+                height_width_ratio: Ratio for the layout creation process
+                dims: The dimension of the input tensor
         """
-
+        super().__init__(unique_name, title, [1, num_densities])
         height_width_ratio = height_width_ratio * num_densities
-        self.fig_heatmap = plt.figure(str(number))
-        self.plot_list = num_densities * [None]
         self.dims = dims
-        self.title = display_namme
-
-        # check how much densities should be displayed
-        base_num = 100 + num_densities * 10
-        self.plot_list = [self.fig_heatmap.add_subplot(base_num + k + 1) for k in range(num_densities)]
+        self.title = title
+        self.color = color
 
         # calculate the standard layout
         self.borders = [2, 1, 0, 0]
-        self.layout, self.size, self.border_size = self.__calc_layout(height_width_ratio, dims, self.borders)
+        self.layout, self.size, self.border_size = MultiDimensionalHeatmap.calc_layout(height_width_ratio, dims, self.borders)
 
     def plot(self, lst_tensor):
 
@@ -63,57 +66,45 @@ class MultiDimensionalHeatmap:
             overall_maximum = np.max(maximum_per_sa)
 
             # convert the tensor
-            tensor2d = self.__convert2d(current_tensor)
-            self.plot_list[k].imshow(tensor2d, interpolation='nearest')
+            self.tensor2d = MultiDimensionalHeatmap.apply_layout(current_tensor, dims, self.layout, self.size)
+            self.plot_list[k].cla()
+            self.plot_list[k].imshow(self.tensor2d, interpolation='nearest', cmap=plt.get_cmap(self.color))
             self.plot_list[k].set_xlim([-0.5, self.size[1] - 0.5])
             self.plot_list[k].set_ylim([-0.5, self.size[0] - 0.5])
 
-        w_dims = np.power(dims, self.layout)
-        leng = np.prod(w_dims)
+        self.__plot_lines(self.layout, True)
+        self.__plot_lines(self.layout, False)
+
+    def __plot_lines(self, mask, horizontal):
+
+        n = len(self.dims)
+        dims = self.dims
+        length = np.prod(np.power(dims, 1 - np.asarray(mask)))
 
         # find start index
         si = n - 1
-        while self.layout[si] == 0 and si > -1:
+        while self.layout[si] == (1 if horizontal else 0) and si > -1:
             si -= 1
 
-        leng /= self.dims[si]
-        leng -= 1
-        leng = int(leng)
+        length /= self.dims[si]
+        length -= 1
+        length = int(length)
 
         if si != -1:
-            for k in range(self.dims[si], (leng + 1) * self.dims[si], self.dims[si]):
+            for k in range(self.dims[si], (length + 1) * self.dims[si], self.dims[si]):
                 for p in range(len(self.plot_list)):
-                    self.plot_list[p].axvline(k - 0.5, color='white')
+                    self.plot_list[p].axhline(k - 0.5, color='black') if horizontal else \
+                        self.plot_list[p].axvline(k - 0.5, color='black')
 
-        h_dims = np.power(dims, 1 - np.asarray(self.layout))
-        leng = np.prod(h_dims)
-
-        # find start index
-        si = n - 1
-        while self.layout[si] == 1 and si > -1:
-            si -= 1
-
-        leng /= self.dims[si]
-        leng -= 1
-        leng = int(leng)
-
-        if si != -1:
-            for k in range(self.dims[si], (leng + 1) * self.dims[si], self.dims[si]):
-                for p in range(len(self.plot_list)):
-                    self.plot_list[p].axhline(k - 0.5, color='white')
-
-        self.fig_heatmap.suptitle(self.title)
-        plt.show(block=False)
-
-    def __convert2d(self, tensor):
+    @staticmethod
+    def apply_layout(tensor, dims, layout, size):
         """This method converts the passed tensor into a 2D-representation.
 
         Args:
             tensor: A tensor of size len(self.dims)
-        """
 
-        dims = self.dims
-        layout = self.layout
+        """
+        layout = layout
         n = len(dims)
 
         # Reshape the tensor according to the layout
@@ -122,15 +113,13 @@ class MultiDimensionalHeatmap:
         for i in reversed(range(n)):
             (slst if layout[i] == 0 else rlst).insert(0, i)
 
-        shaped_tensor = tensor.transpose(slst + rlst).reshape(self.size)
-        #final_tensor = np.zeros(self.border_size)
-        #final_tensor[dims[0]]
+        shaped_tensor = tensor.transpose(slst + rlst).reshape(size)
         return shaped_tensor
 
     @staticmethod
-    def __calc_layout(height_width_ratio, dims, borders):
+    def calc_layout(height_width_ratio, dims, borders):
         """This method calculates the layout for the displaying, such
-        that it gets optimally displayer.
+        that it gets optimally displayed.
         """
 
         def nelements(l, dir):
@@ -175,8 +164,8 @@ class MultiDimensionalHeatmap:
             # get the number of elements in each direction
             nuh, hb = nelements(current_l, 0)
             nuw, hw = nelements(current_l, 1)
-            nh = nuh #+ hb
-            nw = nuw #+ hw
+            nh = nuh  # + hb
+            nw = nuw  # + hw
             k = np.minimum(1 / nw, height_width_ratio / nh)
             new_value = h(current_l, k, height_width_ratio)
 

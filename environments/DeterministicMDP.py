@@ -35,6 +35,12 @@ class DeterministicMDP:
         self.q_function = None
         self.optimal_reward = None
 
+
+
+        mi = np.min(reward_function)
+        ma = np.max(reward_function)
+        reward_function = (reward_function - mi) / (ma - mi)
+
         # Do some assertions on the passed reward and transition functions.
         # They need to have the height of the state space and the width of
         state_action_shape = (state_space.get_size(), action_space.get_size())

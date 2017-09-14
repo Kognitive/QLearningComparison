@@ -75,7 +75,7 @@ class NADEModel:
             log_p_dist = tf.nn.softplus(-pre_p_dist)
 
             nll = -tf.reduce_sum(tf.expand_dims(tf.cast(head_mask_tensor, tf.float64), 0) * (-exp_conc * log_p_dist - inv_v * log_iv_p_dist))
-            minimizer = tf.train.AdamOptimizer(0.0001).minimize(nll, var_list=[W, V, b, c])
+            minimizer = tf.train.AdamOptimizer(0.00025).minimize(nll, var_list=[W, V, b, c])
 
             # return the model
             return density_value, minimizer

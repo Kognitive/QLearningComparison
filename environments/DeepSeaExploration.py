@@ -10,7 +10,7 @@ class DeepSeaExploration(DeterministicMDP):
 
         # create the state and action space
         self.inner_size = N
-        state_space = DiscreteSpace(N * (N + 1) / 2)
+        state_space = DiscreteSpace(N ** 2)
         action_space = DiscreteSpace(2)
 
         # get size of state and action space
@@ -39,6 +39,7 @@ class DeepSeaExploration(DeterministicMDP):
 
                 transition_func[pos, left] = y * N + left_x
                 transition_func[pos, right] = y * N + right_x
-                reward_function[y * (N - 1) + (N - 2), right] = chest
+
+        reward_function[N ** 2 - 1, right] = chest
 
         super().__init__(name, num_states, action_space, state_space, transition_func, reward_function, starting_state)

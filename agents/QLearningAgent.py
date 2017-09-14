@@ -31,6 +31,7 @@ class QLearningAgent:
         # now the default values for some parameters can be defined.
         self.default_value('num_heads', 1)
         self.default_value('num_models', 0)
+        self.default_value('discount', 0.99)
         self.default_value('optimistic', False)
         self.default_value('heads_per_sample', self.config['num_heads'])
 
@@ -304,7 +305,7 @@ class QLearningAgent:
         elif not self.is_activated('optimistic'):
             mu = (self.config['min_q'] + self.config['max_q']) / 2
             sigma = tf.maximum(self.config['max_q'] - mu, 20)
-            init = tf.random_uniform(sah_list, -20, 20, dtype=tf.float64)
+            init = tf.random_normal(sah_list, 30, 40, dtype=tf.float64)
 
         elif self.is_activated('optimistic'):
             sigma = 10

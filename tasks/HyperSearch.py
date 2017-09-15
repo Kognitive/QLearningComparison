@@ -14,13 +14,17 @@ from environments.BinaryFlipEnvironment import BinaryFlipEnvironment
 from environments.DeepSeaExploration import DeepSeaExploration
 from environments.GridWorld import GridWorld
 
-# the number of models an average should be taken
-os.environ["CUDA_VISIBLE_DEVICES"] = ""
-
 # ------------------------------ SETTINGS ------------------------------------
-env_build = [[BinaryFlipEnvironment, "bin_flip", [4, 8, 12], lambda n: 2 * n],
-             [DeepSeaExploration, "deep_sea", [5, 10, 20, 30, 40, 50], lambda n: n],
-             [ExplorationChain, "exp_chain", [5, 10, 20, 30, 40, 50], lambda n: n + 9]]
+#env_build = [[ExplorationChain, "exp_chain", [3, 5, 8, 10], lambda n: n + 9],
+#             [BinaryFlipEnvironment, "bin_flip", [4, 8], lambda n: 4 * n],
+#             [DeepSeaExploration, "deep_sea", [3, 4, 5], lambda n: n],
+#             [GridWorld, "grid_world", [3, 4, 5], lambda n: 2 * n]]
+
+
+env_build = [[GridWorld, "grid_world", [5, 4, 3], lambda n: 2 * n],
+             [DeepSeaExploration, "deep_sea", [5, 4, 3], lambda n: n],
+             [BinaryFlipEnvironment, "bin_flip", [8, 4], lambda n: 4 * n],
+             [ExplorationChain, "exp_chain", [10, 8, 5, 3], lambda n: n + 9]]
 
 color_pool = [
     ['#1455bc', '#81b0f945'],
@@ -36,39 +40,45 @@ color_pool = [
 ]
 
 # define the policy batch size
-policy_batch_size = 20
+policy_batch_size = 10
 
 # define the different policies you want to try out
 policy_batches = [
-    #["eps_greedy", EpsilonGreedyPolicy,
-    #   {'epsilon': [0.001, 0.005, 0.01, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.5]}],
-    #["boltzmann", BoltzmannPolicy,
-    #    {'temperature': [0.001, 0.005, 0.01, 0.05, 0.1, 0.3, 1, 10, 50, 100]}],
+    ["eps_greedy", EpsilonGreedyPolicy,
+       {'epsilon': [0.001, 0.005, 0.01, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.5]}],
+    ["boltzmann", BoltzmannPolicy,
+        {'temperature': [0.001, 0.005, 0.01, 0.05, 0.1, 0.3, 1, 10, 50, 100]}],
     ["deterministic_cb_pseudo_count", GreedyPolicy,
-     {'pseudo_count': [True], 'pseudo_count_type': ['count_based'], 'optimistic': [True, False],
-      'beta': [0.1, 0.25, 0.5, 0.75, 1, 1.5, 2, 5, 10]}],
+     {'pseudo_count': [True], 'pseudo_count_type': ['count_based'], 'optimistic': [False],
+      'beta': [0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1, 3, 5, 10]}],
+    ["deterministic_cb_pseudo_count_optimistic", GreedyPolicy,
+     {'pseudo_count': [True], 'pseudo_count_type': ['count_based'], 'optimistic': [False],
+      'beta': [0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1, 3, 5, 10]}],
 
     ["deterministic_bootstrapped", GreedyPolicy,
-     {'num_heads': [1, 3, 5, 7, 10, 15, 20]}],
-
+     {'num_heads': [1, 3, 5, 7, 10, 15]}],
     ["deterministic_bootstrapped_cb_pseudo_count", GreedyPolicy,
-        {'pseudo_count': [True], 'num_heads': [3, 5, 7], 'pseudo_count_type': ['count_based'], 'optimistic': [True, False], 'beta': [0.1, 0.5, 1, 5]}],
+        {'pseudo_count': [True], 'num_heads': [3, 5, 7], 'pseudo_count_type': ['count_based'], 'optimistic': [False], 'beta': [0.005, 0.01, 0.05]}],
+    ["deterministic_bootstrapped_cb_pseudo_count_optimistic", GreedyPolicy,
+        {'pseudo_count': [True], 'num_heads': [3, 5, 7], 'pseudo_count_type': ['count_based'], 'optimistic': [True], 'beta': [0.005, 0.01, 0.05]}],
 
-     #["eps_greedy_bootstrapped", EpsilonGreedyPolicy,
-    #    {'epsilon': [0.001, 0.005, 0.01, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.5], 'num_heads': [1, 3, 5, 7, 10, 15, 20]}],
+     ["eps_greedy_bootstrapped", EpsilonGreedyPolicy,
+        {'epsilon': [0.01, 0.05, 0.1], 'num_heads': [3, 5, 7]}],
+
     ["boltzmann_bootstrapped", BoltzmannPolicy,
-        {'temperature': [0.005, 0.05, 0.3, 1], 'num_heads': [3, 5, 7]}],
+        {'temperature': [0.005, 0.05, 0.3], 'num_heads': [3, 5, 7]}],
 
-   #["deterministic_pg_pseudo_count", GreedyPolicy,
-    # {'pseudo_count': [True], 'pseudo_count_type': ['prediction_gain'], 'optimistic': [True, False],
-    #  'beta': [0.1, 0.25, 0.5, 0.75, 1, 1.5, 2, 5, 10], 'c': [0.1, 0.25, 0.5, 0.75, 1, 1.5, 2, 5, 10]}],
-    #["deterministic_pc_pseudo_count", GreedyPolicy,
-    #     {'pseudo_count': [True], 'pseudo_count_type': ['pseudo_count'], 'optimistic': [True, False],
-    #      'beta': [0.1, 0.25, 0.5, 0.75, 1, 1.5, 2, 5, 10]}],
+    ["deterministic_pc_pseudo_count, ", GreedyPolicy,
+        {'pseudo_count': [True], 'pseudo_count_type': ['pseudo_count'], 'optimistic': [False], 'beta': [0.005, 0.01, 0.05, 0.1, 0.5, 1, 2, 5, 10]}],
 
+    ["deterministic_pc_pseudo_count_optimistic, ", GreedyPolicy,
+        {'pseudo_count': [True], 'pseudo_count_type': ['pseudo_count'], 'optimistic': [True], 'beta': [0.005, 0.01, 0.05, 0.1, 0.5, 1, 2, 5, 10]}],
 
     ["deterministic_ucb", GreedyPolicy,
-        {'optimistic': [True, False], 'ucb': [True], 'p': [0.1, 0.25, 0.5, 0.75, 1, 1.5, 2, 5, 10]}]
+        {'optimistic': [True], 'ucb': [True], 'p': [0.1, 0.25, 0.5, 0.75, 1, 1.5, 2, 5, 10]}],
+
+    ["deterministic_ucb", GreedyPolicy,
+        {'optimistic': [True], 'ucb': [False], 'p': [0.1, 0.25, 0.5, 0.75, 1, 1.5, 2, 5, 10]}]
     ]
 
 batch_num = 0
@@ -78,7 +88,7 @@ best_va_policies = len(policy_batches) * [0]
 best_tr_policies = len(policy_batches) * [0]
 
 # create variable for the steps and do this amount of steps.
-num_models = 500
+num_models = 100
 show_models = 3
 num_episodes = 1500
 learned_episodes = 200
@@ -168,194 +178,197 @@ for [env_build, env_name, range_N, length] in env_build:
             elif batch_num == len(policy_batches) + 1:
                 batch = best_tr_policies
                 name = "best_tr"
+            try:
+                tf.reset_default_graph()
+                graph = tf.Graph()
+                with graph.as_default():
+                    with tf.Session(graph=graph) as sess:
 
-            tf.reset_default_graph()
-            graph = tf.Graph()
-            with graph.as_default():
-                with tf.Session(graph=graph) as sess:
+                        env = env_build("test", [num_models], n)
+                        state_space = env.state_space
+                        action_space = env.action_space
+                        log_action_size = action_space.get_log2_size()
 
-                    env = env_build("test", [num_models], n)
-                    state_space = env.state_space
-                    action_space = env.action_space
-                    log_action_size = action_space.get_log2_size()
+                        # --------------------- Determine the optimal reward --------------------
 
-                    # --------------------- Determine the optimal reward --------------------
+                        # Determine the agent count
+                        num_policies = len(batch)
+                        optimal_ih_rew, min_q, max_q = env.get_optimal(num_steps, 0.99)
 
-                    # Determine the agent count
-                    num_policies = len(batch)
-                    optimal_ih_rew, min_q, max_q = env.get_optimal(num_steps, 0.99)
+                        # --------------------------------------------------------------------------
 
-                    # --------------------------------------------------------------------------
+                        # Iterate over all policies and create an agent using that specific policy
+                        agents = list()
+                        environments = list()
+                        for pol_num in range(num_policies):
 
-                    # Iterate over all policies and create an agent using that specific policy
-                    agents = list()
-                    environments = list()
-                    for pol_num in range(num_policies):
+                            # Get policy and unqiue name
+                            pe = batch[pol_num]
+                            unique_name = str(pol_num)
 
-                        # Get policy and unqiue name
-                        pe = batch[pol_num]
-                        unique_name = str(pol_num)
+                            # extract important fields
+                            policy = pe[2]
+                            policy_config = pe[3]
+                            policy_config['num_models'] = num_models
+                            policy_config['action_space'] = action_space
+                            policy_config['min_q'] = min_q
+                            policy_config['max_q'] = max_q
+                            policy_config['discount'] = 0.99
 
-                        # extract important fields
-                        policy = pe[2]
-                        policy_config = pe[3]
-                        policy_config['num_models'] = num_models
-                        policy_config['action_space'] = action_space
-                        policy_config['min_q'] = min_q
-                        policy_config['max_q'] = max_q
-                        policy_config['discount'] = 0.99
+                            current_env = env_build(unique_name, [num_models], n)
+                            environments.append(current_env)
+                            agents.append(QLearningAgent(sess, unique_name, current_env, policy, policy_config))
 
-                        current_env = env_build(unique_name, [num_models], n)
-                        environments.append(current_env)
-                        agents.append(QLearningAgent(sess, unique_name, current_env, policy, policy_config))
+                        # init variables
+                        init = tf.global_variables_initializer()
+                        sess.run(init)
 
-                    # init variables
-                    init = tf.global_variables_initializer()
-                    sess.run(init)
+                        # define the evaluation rewards
+                        training_rewards = np.empty((num_episodes + 1, num_policies, num_models))
+                        training_mean = np.empty((num_episodes + 1, num_policies))
+                        training_var = np.empty((num_episodes + 1, num_policies))
 
-                    # define the evaluation rewards
-                    training_rewards = np.empty((num_episodes + 1, num_policies, num_models))
-                    training_mean = np.empty((num_episodes + 1, num_policies))
-                    training_var = np.empty((num_episodes + 1, num_policies))
+                        # set value for first episode
+                        training_rewards[0, :, :] = 0
+                        training_mean[0, :] = 0
+                        training_var[0, :] = 0
 
-                    # set value for first episode
-                    training_rewards[0, :, :] = 0
-                    training_mean[0, :] = 0
-                    training_var[0, :] = 0
+                        # define the evaluation rewards
+                        val_rewards = np.empty((num_episodes + 1, num_policies, num_models))
+                        val_mean = np.empty((num_episodes + 1, num_policies))
+                        val_var = np.empty((num_episodes + 1, num_policies))
 
-                    # define the evaluation rewards
-                    val_rewards = np.empty((num_episodes + 1, num_policies, num_models))
-                    val_mean = np.empty((num_episodes + 1, num_policies))
-                    val_var = np.empty((num_episodes + 1, num_policies))
+                        # set value for first episode
+                        val_rewards[0, :, :] = 0
+                        val_mean[0, :] = 0
+                        val_var[0, :] = 0
 
-                    # set value for first episode
-                    val_rewards[0, :, :] = 0
-                    val_mean[0, :] = 0
-                    val_var[0, :] = 0
+                        # get the learn operations
 
-                    # get the learn operations
+                        # retrieve the learn operations
+                        update_and_receive_rewards = [agent.q_tensor_update for agent in agents]
+                        perform_ops = [agent.apply_actions for agent in agents]
 
-                    # retrieve the learn operations
-                    update_and_receive_rewards = [agent.q_tensor_update for agent in agents]
-                    perform_ops = [agent.apply_actions for agent in agents]
+                        reset_ops = [envs.reset_op for envs in environments]
+                        cum_rew_ops = [envs.cum_rewards for envs in environments]
+                        episode = 0
 
-                    reset_ops = [envs.reset_op for envs in environments]
-                    cum_rew_ops = [envs.cum_rewards for envs in environments]
-                    episode = 0
+                        # iterate over episodes
+                        for episode in range(1, num_episodes + 1):
+                            print("Environment={}, N={}, BatchNum={}, SubBatchNum={}, Episode={}".format(env_name, n, batch_num, sub_batch_num, episode))
+                            # reset all environments
+                            sess.run(reset_ops)
 
-                    # iterate over episodes
-                    for episode in range(1, num_episodes + 1):
-                        print("Environment={}, N={}, BatchNum={}, SubBatchNum={}, Episode={}".format(env_name, n, batch_num, sub_batch_num, episode))
-                        # reset all environments
-                        sess.run(reset_ops)
+                            # for each agent sample a new head
+                            state_dict = {}
+                            for k in range(num_policies):
+                                agents[k].sample_head()
+                                state_dict[agents[k].use_best] = False
 
-                        # for each agent sample a new head
-                        state_dict = {}
-                        for k in range(num_policies):
-                            agents[k].sample_head()
-                            state_dict[agents[k].use_best] = False
+                            # repeat this for the number of steps
+                            for k in range(num_steps):
 
-                        # repeat this for the number of steps
-                        for k in range(num_steps):
+                                # receive rewards and add
+                                sess.run(update_and_receive_rewards, feed_dict=state_dict)
 
-                            # receive rewards and add
-                            sess.run(update_and_receive_rewards, feed_dict=state_dict)
+                            # copy values
+                            training_rewards[episode, :, :] = sess.run(cum_rew_ops) / optimal_ih_rew
 
-                        # copy values
-                        training_rewards[episode, :, :] = sess.run(cum_rew_ops) / optimal_ih_rew
+                            # determine mean and variance
+                            training_mean[episode, :] = np.mean(training_rewards[episode, :, :], axis=1)
+                            training_var[episode, :] = np.var(training_rewards[episode, :, :], axis=1)
 
-                        # determine mean and variance
-                        training_mean[episode, :] = np.mean(training_rewards[episode, :, :], axis=1)
-                        training_var[episode, :] = np.var(training_rewards[episode, :, :], axis=1)
+                            # reset all environments
+                            sess.run(reset_ops)
 
-                        # reset all environments
-                        sess.run(reset_ops)
+                            # for each agent sample a new head
+                            state_dict = {}
+                            for k in range(num_policies):
+                                agents[k].sample_head()
+                                state_dict[agents[k].use_best] = True
 
-                        # for each agent sample a new head
-                        state_dict = {}
-                        for k in range(num_policies):
-                            agents[k].sample_head()
-                            state_dict[agents[k].use_best] = True
+                            # repeat this for the number of steps
+                            for k in range(num_steps):
 
-                        # repeat this for the number of steps
-                        for k in range(num_steps):
+                                # Execute all actions and collect rewards
+                                sess.run(perform_ops, feed_dict=state_dict)
 
-                            # Execute all actions and collect rewards
-                            sess.run(perform_ops, feed_dict=state_dict)
+                            # copy values
+                            val_rewards[episode, :, :] = sess.run(cum_rew_ops) / optimal_ih_rew
 
-                        # copy values
-                        val_rewards[episode, :, :] = sess.run(cum_rew_ops) / optimal_ih_rew
+                            # determine mean and variance
+                            val_mean[episode, :] = np.mean(val_rewards[episode, :, :], axis=1)
+                            val_var[episode, :] = np.var(val_rewards[episode, :, :], axis=1)
 
-                        # determine mean and variance
-                        val_mean[episode, :] = np.mean(val_rewards[episode, :, :], axis=1)
-                        val_var[episode, :] = np.var(val_rewards[episode, :, :], axis=1)
+                            if episode > learned_episodes:
+                                important_episodes = val_mean[(episode - learned_episodes + 1):episode + 1, :]
+                                mean_important_episodes = np.mean(important_episodes, axis=1)
+                                if np.min(mean_important_episodes, axis=0) >= 0.99:
+                                    break
 
-                        if episode > learned_episodes:
-                            important_episodes = val_mean[(episode - learned_episodes + 1):episode + 1, :]
-                            mean_important_episodes = np.mean(important_episodes, axis=1)
-                            if np.min(mean_important_episodes, axis=0) >= 0.99:
-                                break
+                            #if save_density and (episode - 1) % density_episodes == 0:
 
-                        #if save_density and (episode - 1) % density_episodes == 0:
+                # save the collected reward
+                np.save(env_dir + 'npy_rewards/tr_' + name + "_" + str(sub_batch_num) + '_mean.npy', training_mean)
+                np.save(env_dir + 'npy_rewards/tr_' + name + "_" + str(sub_batch_num) + '_var.npy', training_var)
+                np.save(env_dir + 'npy_rewards/va_' + name + "_" + str(sub_batch_num) + '_mean.npy', val_mean)
+                np.save(env_dir + 'npy_rewards/va_' + name + "_" + str(sub_batch_num) + '_var.npy', val_var)
+                plt_path = env_dir
 
-            # save the collected reward
-            np.save(env_dir + 'npy_rewards/tr_' + name + "_" + str(sub_batch_num) + '_mean.npy', training_mean)
-            np.save(env_dir + 'npy_rewards/tr_' + name + "_" + str(sub_batch_num) + '_var.npy', training_var)
-            np.save(env_dir + 'npy_rewards/va_' + name + "_" + str(sub_batch_num) + '_mean.npy', val_mean)
-            np.save(env_dir + 'npy_rewards/va_' + name + "_" + str(sub_batch_num) + '_var.npy', val_var)
-            plt_path = env_dir
+                # determine the best policy
+                if batch_num < len(policy_batches):
 
-            # determine the best policy
-            if batch_num < len(policy_batches):
+                    # build the cumulative reward on the validation set
+                    cum_reward_tr = np.sum(training_mean, axis=0)
+                    best_index_tr = np.argmax(cum_reward_tr)
+                    best_value_tr = np.max(cum_reward_tr)
+                    if best_value_tr > best_cum_tr_rew:
+                        best_tr_policies[batch_num] = batch[best_index_tr]
+                        best_cum_tr_rew = best_value_tr
 
-                # build the cumulative reward on the validation set
-                cum_reward_tr = np.sum(training_mean, axis=0)
-                best_index_tr = np.argmax(cum_reward_tr)
-                best_value_tr = np.max(cum_reward_tr)
-                if best_value_tr > best_cum_tr_rew:
-                    best_tr_policies[batch_num] = batch[best_index_tr]
-                    best_cum_tr_rew = best_value_tr
+                    # build the cumulative reward on the validation set
+                    cum_reward_va = np.sum(val_mean, axis=0)
+                    best_index_va = np.argmax(cum_reward_va)
+                    best_value_va = np.max(cum_reward_va)
+                    if best_value_va > best_cum_va_rew:
+                        best_va_policies[batch_num] = batch[best_index_va]
+                        best_cum_va_rew = best_value_va
 
-                # build the cumulative reward on the validation set
-                cum_reward_va = np.sum(val_mean, axis=0)
-                best_index_va = np.argmax(cum_reward_va)
-                best_value_va = np.max(cum_reward_va)
-                if best_value_va > best_cum_va_rew:
-                    best_va_policies[batch_num] = batch[best_index_va]
-                    best_cum_va_rew = best_value_va
+                    plt_path = env_dir + 'plots_rewards/'
 
-                plt_path = env_dir + 'plots_rewards/'
+                # Create the figure containing the training and validation error
+                plt.clf()
+                fig_error = plt.figure(0)
+                fig_error.set_size_inches(15.0, 8.0)
+                top = fig_error.add_subplot(211)
+                bottom = fig_error.add_subplot(212)
 
-            # Create the figure containing the training and validation error
-            plt.clf()
-            fig_error = plt.figure(0)
-            fig_error.set_size_inches(15.0, 8.0)
-            top = fig_error.add_subplot(211)
-            bottom = fig_error.add_subplot(212)
+                top.set_title("Training Error")
+                bottom.set_title("Validation Error")
+                top.axhline(y=1, color='r', linestyle=':', label='Optimal')
+                bottom.axhline(y=1, color='r', linestyle=':', label='Optimal')
 
-            top.set_title("Training Error")
-            bottom.set_title("Validation Error")
-            top.axhline(y=1, color='r', linestyle=':', label='Optimal')
-            bottom.axhline(y=1, color='r', linestyle=':', label='Optimal')
+                # plot using the correct colors
+                for i in range(np.size(training_mean, axis=1)):
 
-            # plot using the correct colors
-            for i in range(np.size(training_mean, axis=1)):
+                    tr_confidence_offset = 1.96 * training_var[:episode] / np.sqrt(np.size(training_mean, axis=1))
+                    va_confidence_offset = 1.96 * val_var[:episode] / np.sqrt(np.size(val_mean, axis=1))
+                    n_range = np.arange(0, episode)
 
-                tr_confidence_offset = 1.96 * training_var[:episode] / np.sqrt(np.size(training_mean, axis=1))
-                va_confidence_offset = 1.96 * val_var[:episode] / np.sqrt(np.size(val_mean, axis=1))
-                n_range = np.arange(0, episode)
+                    tr_lower = training_mean[:episode] - tr_confidence_offset
+                    tr_upper = training_mean[:episode] + tr_confidence_offset
+                    #top.fill_between(n_range, tr_upper, tr_lower, color=color_pool[i][1])
+                    #bottom.fill_between(n_range, val_mean[:episode] - va_confidence_offset, val_mean[:episode] + va_confidence_offset, color=color_pool[i][1])
 
-                tr_lower = training_mean[:episode] - tr_confidence_offset
-                tr_upper = training_mean[:episode] + tr_confidence_offset
-                #top.fill_between(n_range, tr_upper, tr_lower, color=color_pool[i][1])
-                #bottom.fill_between(n_range, val_mean[:episode] - va_confidence_offset, val_mean[:episode] + va_confidence_offset, color=color_pool[i][1])
+                    label = "{} ({})".format(batch[i][0], batch[i][1])
+                    handles_top = top.plot(training_mean[:episode, i], label=label)
+                    handles_bottom = bottom.plot(val_mean[:episode, i], label=label)
 
-                label = "{} ({})".format(batch[i][0], batch[i][1])
-                handles_top = top.plot(training_mean[:episode, i], label=label)
-                handles_bottom = bottom.plot(val_mean[:episode, i], label=label)
+                #bottom.legend(loc='lower right')
+                plt.savefig(plt_path + name + "_" + str(sub_batch_num) + '.eps')
 
-            #bottom.legend(loc='lower right')
-            plt.savefig(plt_path + name + "_" + str(sub_batch_num) + '.eps')
+            except:
+               print("Failure at " + str(batch_counter))
 
             if batch_num >= len(policy_batches):
                 batch_num += 1

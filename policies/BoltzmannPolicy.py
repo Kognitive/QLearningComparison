@@ -24,7 +24,7 @@ class BoltzmannPolicy(Policy):
         # create the categorical
         dist = tf.distributions.Categorical(probs=soft_max)
         actions = tf.cast(dist.sample(), tf.int64)
-        actions = tf.Print(actions, [actions])
+        actions = actions
 
         # pass back the actions and corresponding q values
         model_range = tf.range(0, config['num_models'], 1, dtype=tf.int64)

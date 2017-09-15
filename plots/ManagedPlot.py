@@ -50,17 +50,17 @@ class ManagedPlot:
         for plt_ind in range(num_elements):
             self.plot_list[plt_ind] = self.figure.add_subplot(basenum + plt_ind + 1)
 
-        self.figure.suptitle(supttitle)
-        self.figure.set_size_inches(4, 6, True)
-        self.writer = None
-        self.handle = None
+        #self.figure.suptitle(supttitle)
+        #self.figure.set_size_inches(4, 6, True)
+        #self.writer = None
+        #self.handle = None
 
-    def start_recording(self, filename):
+    #def start_recording(self, filename):
 
-        self.writer = animation.FFMpegFileWriter(fps=15)
-        self.writer.setup(self.figure, filename, 300)
+        #self.writer = animation.FFMpegFileWriter(fps=15)
+        #self.writer.setup(self.figure, filename, 300)
 
-    def save_recording(self):
-        self.writer.finish()
-        self.writer.cleanup()
+   # def save_recording(self):
+        #self.writer.finish()
+        #self.writer.cleanup()
 

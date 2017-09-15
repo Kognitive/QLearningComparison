@@ -68,7 +68,7 @@ with graph.as_default():
 
         # define the different policies you want to try out
         policies = [
-            ['Deterministic Bootstrapped', GreedyPolicy, {'action_space': action_space, 'num_heads': 12, 'heads_per_sample': 3}]]
+            ['Deterministic Bootstrapped', BoltzmannPolicy, {'action_space': action_space, 'temperature': 0.5}]]
         # --------------------- Determine the optimal reward --------------------
 
         # Determine the agent count
@@ -140,7 +140,7 @@ with graph.as_default():
         cum_rew_ops = [envs.cum_rewards for envs in environments]
 
         timestamp = '{:%Y-%m-%d_%H-%M-%S}'.format(datetime.datetime.now())
-        heatmap.start_recording('../movies/{}'.format(timestamp))
+        #heatmap.start_recording('../movies/{}'.format(timestamp))
 
         # iterate over episodes
         for episode in range(1, num_episodes + 1):
@@ -170,8 +170,8 @@ with graph.as_default():
             training_var[episode, :] = np.var(training_rewards[episode, :, :], axis=1)
 
             ensity_res = sess.run(q_functions, feed_dict)
-            heatmap.plot(ensity_res[0])
-            heatmap.writer.grab_frame()
+            #heatmap.plot(ensity_res[0])
+            #heatmap.writer.grab_frame()
 
             # reset all environments
             sess.run(reset_ops)
@@ -196,7 +196,7 @@ with graph.as_default():
             val_var[episode, :] = np.var(val_rewards[episode, :, :], axis=1)
 
         # Create Q Value Function plots
-        heatmap.save_recording()
+        #heatmap.save_recording()
 
         if approx_density[0][0] == approx_density[0][1]:
             approx_density = [[a] for [a, b] in approx_density]
@@ -224,8 +224,8 @@ for i in range(np.size(training_mean, axis=1)):
 top.legend()
 bottom.legend()
 
-for i in range(len(agents)):
-    heatmap = MultiDimensionalHeatmap(len(density_res[i]), "Agent", i, [5, policies[i][2]['num_heads'], state_space.get_size(), action_space.get_size()], 0.8, 'inferno')
-    heatmap.plot(density_res[i])
+#for i in range(len(agents)):
+ #   heatmap = MultiDimensionalHeatmap(len(density_res[i]), "Agent", i, [5, policies[i][2]['num_heads'], state_space.get_size(), action_space.get_size()], 0.8, 'inferno')
+  #  heatmap.plot(density_res[i])
 
 plt.show(block = True)

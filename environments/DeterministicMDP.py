@@ -35,8 +35,6 @@ class DeterministicMDP:
         self.q_function = None
         self.optimal_reward = None
 
-
-
         mi = np.min(reward_function)
         ma = np.max(reward_function)
         reward_function = (reward_function - mi) / (ma - mi)

@@ -41,3 +41,6 @@ class BinaryFlipEnvironment(DeterministicMDP):
             num = number | (1 << N)
 
         return int("{:0{}b}".format(num, bits), 2)
+
+    def get_name(self):
+        return "bin_flip"

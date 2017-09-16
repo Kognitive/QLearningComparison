@@ -33,3 +33,6 @@ class ExplorationChain(DeterministicMDP):
         reward_function[N - 1, 1] = 1
 
         super().__init__(name, num_states, action_space, state_space, transition_func, reward_function, starting_state)
+
+    def get_name(self):
+        return "exp_chain"

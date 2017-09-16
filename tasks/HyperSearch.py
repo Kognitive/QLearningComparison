@@ -21,10 +21,10 @@ from environments.GridWorld import GridWorld
 #             [GridWorld, "grid_world", [3, 4, 5], lambda n: 2 * n]]
 
 
-env_build = [[GridWorld, "grid_world", [5, 4, 3], lambda n: 2 * n],
-             [DeepSeaExploration, "deep_sea", [5, 4, 3], lambda n: n],
-             [BinaryFlipEnvironment, "bin_flip", [8, 4], lambda n: 4 * n],
-             [ExplorationChain, "exp_chain", [10, 8, 5, 3], lambda n: n + 9]]
+env_build = [[ExplorationChain, "exp_chain", [3, 5, 8, 10, 15], lambda n: n + 9],
+             [GridWorld, "grid_world", [3, 4, 5], lambda n: 2 * n + 9],
+             [DeepSeaExploration, "deep_sea", [3, 4, 5], lambda n: n],
+             [BinaryFlipEnvironment, "bin_flip", [4, 8], lambda n: 4 * n]]
 
 color_pool = [
     ['#1455bc', '#81b0f945'],

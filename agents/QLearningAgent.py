@@ -303,9 +303,8 @@ class QLearningAgent:
             init = tf.zeros(sah_list, dtype=tf.float64)
 
         elif not self.is_activated('optimistic'):
-            mu = (self.config['min_q'] + self.config['max_q']) / 2
-            sigma = tf.maximum(self.config['max_q'] - mu, 20)
-            init = tf.random_normal(sah_list, 30, 40, dtype=tf.float64)
+            offset = 30
+            init = tf.random_uniform(sah_list, self.config['min_q'] - offset, self.config['max_q'], dtype=tf.float64)
 
         elif self.is_activated('optimistic'):
             sigma = 10

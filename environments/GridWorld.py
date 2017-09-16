@@ -36,3 +36,6 @@ class GridWorld(DeterministicMDP):
         reward_function[N ** 2 - 1, 3] = 1
 
         super().__init__(name, num_states, action_space, state_space, transition_func, reward_function, starting_state)
+
+    def get_name(self):
+        return "grid_world"

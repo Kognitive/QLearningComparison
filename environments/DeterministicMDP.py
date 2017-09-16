@@ -35,28 +35,34 @@ class DeterministicMDP:
         self.q_function = None
         self.optimal_reward = None
 
-        mi = np.min(reward_function)
-        ma = np.max(reward_function)
-        reward_function = (reward_function - mi) / (ma - mi)
-
-        # Do some assertions on the passed reward and transition functions.
-        # They need to have the height of the state space and the width of
-        state_action_shape = (state_space.get_size(), action_space.get_size())
-        assert np.shape(transition_function) == state_action_shape
-        assert np.shape(reward_function) == state_action_shape
-
-        # check if transition function is valid
-        for i in range(np.size(transition_function, 0)):
-            for j in range(np.size(transition_function, 1)):
-                assert 0 <= transition_function[i, j] < state_space.get_size()
-
         with tf.variable_scope("env_{}".format(name)):
+            if isinstance(reward_function, np.ndarray):
 
-            # save passed parameters
-            self.transition_function = transition_function
-            self.transition = tf.constant(transition_function, dtype=tf.int64)
-            self.reward_function = reward_function
-            self.rewards = tf.constant(reward_function, dtype=tf.float64)
+                # normalize the reward function
+                mi = np.min(reward_function)
+                ma = np.max(reward_function)
+                reward_function = (reward_function - mi) / (ma - mi)
+
+                # Do some assertions on the passed reward and transition functions.
+                # They need to have the height of the state space and the width of
+                state_action_shape = (state_space.get_size(), action_space.get_size())
+                assert np.shape(transition_function) == state_action_shape
+                assert np.shape(reward_function) == state_action_shape
+
+                # check if transition function is valid
+                for i in range(np.size(transition_function, 0)):
+                    for j in range(np.size(transition_function, 1)):
+                        assert 0 <= transition_function[i, j] < state_space.get_size()
+
+                # save passed parameters
+                self.transition = tf.constant(transition_function, dtype=tf.int64)
+                self.rewards = tf.constant(reward_function, dtype=tf.float64)
+                self.reward_function = reward_function
+                self.transition_function = transition_function
+
+            else:
+                self.transition = transition_function
+                self.rewards = reward_function
 
             # Create the current state vector as well as the operation to reset it to the initial state
             init = tf.constant(self.initial_state, shape=state_tensor_shape, dtype=tf.int64)
@@ -90,8 +96,11 @@ class DeterministicMDP:
         # save the reward and update state
         return tf.group(ass_curr_state, ass_coll_rewards, ass_eps_rewards), next_state
 
-    def single_clone(self):
-        raise NotImplementedError("You have to supply a single clone operation.")
+    def clone(self, new_name):
+        return DeterministicMDP(new_name, self.state_tensor_shape,
+                                self.action_space, self.state_space,
+                                self.transition_function, self.reward_function,
+                                self.initial_state)
 
     def get_optimal(self, steps, discount):
         """This gets the optimal reward using value iteration."""

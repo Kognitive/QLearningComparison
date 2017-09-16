@@ -255,6 +255,7 @@ for [env_build, env_name, range_N, length] in env_build:
 
                         # iterate over episodes
                         for episode in range(1, num_episodes + 1):
+
                             print("Environment={}, N={}, BatchNum={}, SubBatchNum={}, Episode={}".format(env_name, n, batch_num, sub_batch_num, episode))
                             # reset all environments
                             sess.run(reset_ops)
@@ -305,8 +306,6 @@ for [env_build, env_name, range_N, length] in env_build:
                                 mean_important_episodes = np.mean(important_episodes, axis=1)
                                 if np.min(mean_important_episodes, axis=0) >= 0.99:
                                     break
-
-                            #if save_density and (episode - 1) % density_episodes == 0:
 
                 # save the collected reward
                 np.save(env_dir + 'npy_rewards/tr_' + name + "_" + str(sub_batch_num) + '_mean.npy', training_mean)

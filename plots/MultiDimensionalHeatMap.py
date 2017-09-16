@@ -21,8 +21,6 @@
 # SOFTWARE.
 
 import numpy as np
-import matplotlib
-matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.animation as manimation
 
@@ -31,7 +29,7 @@ from plots.ManagedPlot import ManagedPlot
 
 class MultiDimensionalHeatmap(ManagedPlot):
 
-    def __init__(self, unique_name: str, title: str, num_densities: int, dims: list, height_width_ratio: float, color: str):
+    def __init__(self, unique_name: str, num_densities: int, dims: list, height_width_ratio: float, color: str):
         """Creates a new DensityModelPlot. Therefore you have to specify
         how much different densities the plot should handle.
 
@@ -43,10 +41,9 @@ class MultiDimensionalHeatmap(ManagedPlot):
                 height_width_ratio: Ratio for the layout creation process
                 dims: The dimension of the input tensor
         """
-        super().__init__(unique_name, title, [1, num_densities])
+        super().__init__(unique_name, [1, num_densities])
         height_width_ratio = height_width_ratio * num_densities
         self.dims = dims
-        self.title = title
         self.color = color
 
         # calculate the standard layout

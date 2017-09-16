@@ -21,23 +21,23 @@
 # SOFTWARE.
 
 import numpy as np
-import matplotlib
-matplotlib.use("Agg")
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
-
+import os
 
 class ManagedPlot:
 
     """This class can be used to give a class access to subplots managed
     by itself."""
 
-    def __init__(self, unique_name, supttitle, grid_shape):
+    def __init__(self, unique_name, grid_shape):
         """Constructs a new LayoutManagedPlot. Creates subplots according to
         grid_shapes.
         """
         assert len(grid_shape) == 2
         self.grid_shape = grid_shape
+        self.unique_name = unique_name
         self.figure = plt.figure(unique_name)
 
         # create the list of plots
@@ -50,17 +50,17 @@ class ManagedPlot:
         for plt_ind in range(num_elements):
             self.plot_list[plt_ind] = self.figure.add_subplot(basenum + plt_ind + 1)
 
-        #self.figure.suptitle(supttitle)
-        #self.figure.set_size_inches(4, 6, True)
-        #self.writer = None
-        #self.handle = None
+        self.writer = None
 
-    #def start_recording(self, filename):
+    def start_recording(self, agent_folder, fps):
 
-        #self.writer = animation.FFMpegFileWriter(fps=15)
-        #self.writer.setup(self.figure, filename, 300)
+        conc_folder = os.path.join(agent_folder, self.unique_name) + ".mp4"
+        self.writer = animation.FFMpegFileWriter(fps=fps)
+        self.writer.setup(self.figure, conc_folder, dpi=300, frame_prefix='run/tmp/_tmp_{}'.format(self.unique_name))
 
-   # def save_recording(self):
-        #self.writer.finish()
-        #self.writer.cleanup()
+    def store_frame(self):
+        self.writer.grab_frame()
+
+    def stop_recording(self):
+        self.writer.finish()
 

@@ -11,7 +11,7 @@ from os import path
 
 # define the names which you want to be plotted
 root_folder = "run/TaskComparison"
-env_folder = "grid_world_4"
+env_folder = "exp_chain_15"
 plot_best_names = ["bootstrapped", "eps_greedy", "boltzmann"]
 use_best_at_train = False
 cut_at = 200

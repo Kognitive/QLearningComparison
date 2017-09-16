@@ -51,6 +51,12 @@ class PolicyCollection:
                                   BoltzmannPolicy,
                                   [['temperature', [0.001, 0.005, 0.01, 0.05, 0.1, 0.2, 0.3]]])
 
+        PolicyCollection.register("cb_pseudo_count",
+                                  "Pseudo Count (\\beta={})",
+                                  GreedyPolicy,
+                                  [['pseudo_count', [True]], ['pseudo_count_type', ['count_based']],
+                                   ['beta', [0.001, 0.005, 0.01, 0.05, 0.1, 0.2, 0.3, 1, 5, 10]]])
+
     @staticmethod
     def register(key, name, policy, parameters):
         PolicyCollection.policy_def[key] = [name, policy, parameters]

@@ -9,7 +9,6 @@ from collection.ColorCollection import ColorCollection
 from collection.PolicyCollection import PolicyCollection
 from environments.GridWorld import GridWorld
 from environments.DeepSeaExploration import DeepSeaExploration
-from environments.BinaryFlipEnvironment import BinaryFlipEnvironment
 from environments.ExplorationChain import ExplorationChain
 from manager.DirectoryManager import DirectoryManager
 from plots.MultiDimensionalHeatMap import MultiDimensionalHeatmap
@@ -17,9 +16,12 @@ from plots.MultiDimensionalHeatMap import MultiDimensionalHeatmap
 # ------------------------------ SETTINGS ------------------------------------
 
 run = list()
-new_envs = [[GridWorld, [15], lambda n: 2 * n], [ExplorationChain, [40], lambda n: n], [DeepSeaExploration, [20], lambda n: n]]
+new_envs = [[ExplorationChain, [40], lambda n: n], [GridWorld, [15], lambda n: 2 * n], [DeepSeaExploration, [20], lambda n: n]]
 
-new_batch_names = [["eps_greedy", []], ["bootstrapped", []], ["boltzmann", []], ["cb_pseudo_count", []], ["optimistic", []], ['ucb', []]]
+new_batch_names = [["pc_pseudo_count", []], ["bootstrapped", [2]],
+                   ["deterministic_bootstrapped_cb_pseudo_count", []], ["bootstrapped_heads_per_sample", [2, 4]],
+                   ["cb_pseudo_count", []], ["eps_greedy", []], ["boltzmann", []], ["optimistic", []], ["ucb", []]]
+
 run.append([new_envs, new_batch_names])
 
 #new_envs = [[ExplorationChain, [25, 30, 35, 40, 45, 50], lambda n: n + 9],
@@ -30,14 +32,14 @@ run.append([new_envs, new_batch_names])
 #run.append([new_envs, new_batch_names])
 
 save_directory = "run/TaskComparisonPresi"
-num_models = 20
+num_models = 2500
 num_episodes = 5000
 
 #record_indices = []  # 0, 1, 2, 3]
-plot_models = 5
-plot_heads = 3
-save_frame = 5
-fps = 10
+plot_models = 1
+plot_heads = 5
+save_frame = 1
+fps = 15
 
 for [all_envs, batch_names] in run:
     for [env_build, problem_sizes, problem_to_step] in all_envs:

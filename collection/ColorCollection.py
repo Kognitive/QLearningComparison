@@ -12,5 +12,5 @@ class ColorCollection:
             ['#633c27', '#6ee5e145'], # brown
             ['#16e294', '#b4db9b45'], # green_blue
             ['#00b4b7', '#d1555545'], # lightblue
-            ['#b70061', '#6ee5e145'], # lila
+            ['#b70061', '#6ee5e145'] # lila
         ]

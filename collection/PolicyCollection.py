@@ -41,11 +41,6 @@ class PolicyCollection:
                                   GreedyPolicy,
                                   [['num_heads', [1, 3, 5, 7, 10, 15, 20]]])
 
-        PolicyCollection.register("mini_bootstrapped_gaussian",
-                                  "Deterministic Bootstrapped (K={})",
-                                  GreedyPolicy,
-                                  [['num_heads', [1, 3, 5, 7]], ['init_gaussian', [True]]])
-
         PolicyCollection.register("eps_greedy",
                                   "$\\epsilon$-Greedy ($\\epsilon$={})",
                                   EpsilonGreedyPolicy,
@@ -57,7 +52,7 @@ class PolicyCollection:
                                   [['temperature', [0.001, 0.005, 0.01, 0.05, 0.1, 0.2, 0.3]]])
 
         PolicyCollection.register("cb_pseudo_count",
-                                  "Pseudo Count ($\\beta$={})",
+                                  "CB Pseudo Count ($\\beta$={})",
                                   GreedyPolicy,
                                   [['beta', [0.001, 0.005, 0.01, 0.05, 0.1, 0.2, 0.3, 1, 5, 10]],
                                    ['pseudo_count', [True]], ['pseudo_count_type', ['count_based']]])
@@ -71,6 +66,23 @@ class PolicyCollection:
                                   "UCB-Greedy (p={})",
                                   GreedyPolicy,
                                   [['p', [0.001, 0.005, 0.01, 0.05, 0.1, 0.2, 0.3, 1, 5, 10]], ['ucb', [True]]])
+
+        PolicyCollection.register("bootstrapped_heads_per_sample",
+                                  "Deterministic Bootstrapped (H={}, K={})",
+                                  GreedyPolicy,
+                                  [['heads_per_sample', [1, 2, 3, 4, 5, 6, 7]], ['num_heads', [7]]])
+
+        PolicyCollection.register("pc_pseudo_count",
+                                  "PC Pseudo Count (lr={}, \\beta={})",
+                                  GreedyPolicy,
+                                  [['learning_rate', [0.00001, 0.00005, 0.0001, 0.0005, 0.001, 0.005, 0.01]], ['beta', [0.05]],
+                                   ['pseudo_count', [True]], ['pseudo_count_type', ['count_based']]])
+
+        PolicyCollection.register("deterministic_bootstrapped_cb_pseudo_count",
+                                  "Deterministic PC Bootstrapped (K={},  \\beta={})",
+                                  GreedyPolicy,
+                                  [['num_heads', [7]], ['beta', [0.001, 0.005, 0.01, 0.05, 0.1, 0.2, 0.3, 1, 5, 10]],
+                                   ['pseudo_count', [True]], ['pseudo_count_type', ['count_based']]])
 
     @staticmethod
     def register(key, name, policy, parameters):

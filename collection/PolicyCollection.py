@@ -41,21 +41,36 @@ class PolicyCollection:
                                   GreedyPolicy,
                                   [['num_heads', [1, 3, 5, 7, 10, 15, 20]]])
 
+        PolicyCollection.register("mini_bootstrapped_gaussian",
+                                  "Deterministic Bootstrapped (K={})",
+                                  GreedyPolicy,
+                                  [['num_heads', [1, 3, 5, 7]], ['init_gaussian', [True]]])
+
         PolicyCollection.register("eps_greedy",
-                                  "\epsilon-Greedy (\\epsilon={})",
+                                  "$\\epsilon$-Greedy ($\\epsilon$={})",
                                   EpsilonGreedyPolicy,
                                   [['epsilon', [0.001, 0.005, 0.01, 0.05, 0.1, 0.2, 0.3]]])
 
         PolicyCollection.register("boltzmann",
-                                  "Boltzmann (\\beta={})",
+                                  "Boltzmann ($\\beta$={})",
                                   BoltzmannPolicy,
                                   [['temperature', [0.001, 0.005, 0.01, 0.05, 0.1, 0.2, 0.3]]])
 
         PolicyCollection.register("cb_pseudo_count",
-                                  "Pseudo Count (\\beta={})",
+                                  "Pseudo Count ($\\beta$={})",
                                   GreedyPolicy,
-                                  [['pseudo_count', [True]], ['pseudo_count_type', ['count_based']],
-                                   ['beta', [0.001, 0.005, 0.01, 0.05, 0.1, 0.2, 0.3, 1, 5, 10]]])
+                                  [['beta', [0.001, 0.005, 0.01, 0.05, 0.1, 0.2, 0.3, 1, 5, 10]],
+                                   ['pseudo_count', [True]], ['pseudo_count_type', ['count_based']]])
+
+        PolicyCollection.register("optimistic",
+                                  "Optimistic",
+                                  GreedyPolicy,
+                                  [['optimistic', [True]]])
+
+        PolicyCollection.register("ucb",
+                                  "UCB-Greedy (p={})",
+                                  GreedyPolicy,
+                                  [['p', [0.001, 0.005, 0.01, 0.05, 0.1, 0.2, 0.3, 1, 5, 10]], ['ucb', [True]]])
 
     @staticmethod
     def register(key, name, policy, parameters):

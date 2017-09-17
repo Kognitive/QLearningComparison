@@ -17,23 +17,21 @@ from plots.MultiDimensionalHeatMap import MultiDimensionalHeatmap
 # ------------------------------ SETTINGS ------------------------------------
 
 run = list()
-new_envs = [[ExplorationChain, [3, 5, 8, 10, 15], lambda n: n + 9],
-             [GridWorld, [3, 4, 5], lambda n: 2 * n + 9],
-             [DeepSeaExploration, [3, 4, 5], lambda n: n]]
+new_envs = [[GridWorld, [15], lambda n: 2 * n], [ExplorationChain, [40], lambda n: n], [DeepSeaExploration, [20], lambda n: n]]
 
-new_batch_names = [["cb_pseudo_count", []]]
+new_batch_names = [["eps_greedy", []], ["bootstrapped", []], ["boltzmann", []], ["cb_pseudo_count", []], ["optimistic", []], ['ucb', []]]
 run.append([new_envs, new_batch_names])
 
-new_envs = [[ExplorationChain, [20, 25, 30, 35, 40, 45, 50], lambda n: n + 9],
-             [DeepSeaExploration, [10, 15, 20], lambda n: n],
-             [GridWorld, [10, 15, 20], lambda n: 2 * n + 9]]
+#new_envs = [[ExplorationChain, [25, 30, 35, 40, 45, 50], lambda n: n + 9],
+#             [DeepSeaExploration, [10, 15, 20], lambda n: n],
+#             [GridWorld, [10, 15, 20], lambda n: 2 * n + 9]]
 
-new_batch_names = [["eps_greedy", []], ["bootstrapped", []], ["boltzmann", []], ["cb_pseudo_count", []]]
-run.append([new_envs, new_batch_names])
+#new_batch_names = [["eps_greedy", []], ["bootstrapped", []], ["boltzmann", []], ["cb_pseudo_count", []]]
+#run.append([new_envs, new_batch_names])
 
-save_directory = "run/TaskComparison"
-num_models = 1000
-num_episodes = 2000
+save_directory = "run/TaskComparisonPresi"
+num_models = 20
+num_episodes = 5000
 
 #record_indices = []  # 0, 1, 2, 3]
 plot_models = 5
@@ -41,7 +39,7 @@ plot_heads = 3
 save_frame = 5
 fps = 10
 
-for [all_envs, batch_names] in runs:
+for [all_envs, batch_names] in run:
     for [env_build, problem_sizes, problem_to_step] in all_envs:
 
         for N in problem_sizes:

@@ -304,12 +304,19 @@ class QLearningAgent:
 
         elif not self.is_activated('optimistic'):
             offset = 30
-            init = tf.random_uniform(sah_list, self.config['min_q'] - offset, self.config['max_q'], dtype=tf.float64)
+            mu = (2 * self.config['min_q'] - offset) / 2
+            sigma = offset / 2
+
+            if self.is_activated('init_gaussian'):
+                init = tf.random_normal(sah_list, mu, sigma, dtype=tf.float64)
+
+            else:
+                init = tf.random_uniform(sah_list, self.config['min_q'] - offset, self.config['min_q'], dtype=tf.float64)
 
         elif self.is_activated('optimistic'):
             sigma = 10
-            mu = self.config['max_q'] + sigma
-            init = tf.random_normal(sah_list, dtype=tf.float64) * sigma + mu
+            mu = self.config['max_q'] + 2 * sigma
+            init = tf.random_uniform(sah_list, self.config['max_q'] + sigma, self.config['max_q'] + 2 * sigma, dtype=tf.float64)
 
         return init
 

@@ -81,14 +81,29 @@ class QLearningAgent:
             rewards = environment.get_rewards()
             exp_current_states = tf.expand_dims(current_states, 1)
 
-            # Get indices for easy access of the various models
-            ind_mod_head = tf.stack([model_range, current_heads], axis=1)
-            ind_mod_head_cstate = tf.concat([ind_mod_head, exp_current_states], axis=1)
+            if self.config['ucb_infogain']:
 
-            # Access the q_vectors associated with the current state of each model.
-            # use these to select the best and the normal action using the supplied
-            # policies
-            q_vector = tf.gather_nd(q_tensor, ind_mod_head_cstate)
+                # Get indices for easy access of the various models
+                ind_mod_head = tf.stack([model_range, current_heads], axis=1)
+                ind_mod_head_cstate = tf.concat([ind_mod_head, exp_current_states], axis=1)
+
+                # Access the q_vectors associated with the current state of each model.
+                # use these to select the best and the normal action using the supplied
+                # policies
+                q_vector = tf.gather_nd(q_tensor, ind_mod_head_cstate)
+
+            else:
+                ind_mod_head = tf.stack([model_range, exp_current_states], axis=1)
+                ext_q_tensor = tf.gather_nd(tf.transpose(q_tensor, [0, 2, 1, 3]), ind_mod_head)
+                q_mean, q_var = tf.nn.moments(ext_q_tensor, axis=[1])
+                q_vector = q_mean + self.config['lambda'] * q_var
+
+                # get the info gain bonus
+                soft_ext_q_tensor = tf.nn.softmax(ext_q_tensor / self.config['info_gain_temp'])
+                avg_soft_ext_q_tensor = tf.expand_dims(tf.reduce_mean(soft_ext_q_tensor, axis=1), 1)
+                kl_divergence = soft_ext_q_tensor * tf.log(soft_ext_q_tensor / avg_soft_ext_q_tensor)
+                self.config['info_gain_term'] = tf.reduce_mean(tf.reduce_sum(kl_divergence, axis=2), axis=1)
+
             self.best_actions, _ = GreedyPolicy().select_action(q_vector, None)
             self.normal_actions, _ = policy().select_action(q_vector, config)
 
@@ -182,6 +197,9 @@ class QLearningAgent:
             self.config['pseudo-count-term'] = self.pseudo_count_term(self.config['beta'], current_state_action_counts)
             shaped_rewards += self.config['pseudo-count-term']
 
+        if 'info_gain_term' in self.config:
+            shaped_rewards += self.config['info_gain_term']
+
         return shaped_rewards
 
     def get_q_tensor_update(self, ind_heads, q_tensor, discount, lr, current_states, actions, rewards, next_states, apply_actions):
@@ -244,7 +262,7 @@ class QLearningAgent:
 
         density_config = {'num_models': self.config['num_models'], 'num_heads': self.config['num_heads'],
                           'action_space': self.action_space,  'state_space': self.state_space,
-                          'num_hidden': 20, 'heads_per_sample': self.config['heads_per_sample']}
+                          'num_hidden': 40, 'heads_per_sample': self.config['heads_per_sample']}
 
         ref_density = CountBasedModel(density_config)
         cb_density = None
@@ -252,6 +270,7 @@ class QLearningAgent:
         if self.is_activated('pseudo_count') and self.config['pseudo_count_type'] != 'count_based':
 
             # create the operations for the density model
+            density_config['learning_rate'] = self.config['learning_rate']
             density_model = NADEModel(density_config)
             cb_density = CountBasedAdapter(self.config, density_model)
 

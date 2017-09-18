@@ -39,7 +39,7 @@ class PolicyCollection:
         PolicyCollection.register("bootstrapped",
                                   "Deterministic Bootstrapped (K={})",
                                   GreedyPolicy,
-                                  [['num_heads', [1, 3, 5, 7, 10, 15, 20]]])
+                                  [['num_heads', [1, 3, 5, 7, 10]]])
 
         PolicyCollection.register("eps_greedy",
                                   "$\\epsilon$-Greedy ($\\epsilon$={})",
@@ -76,13 +76,18 @@ class PolicyCollection:
                                   "PC Pseudo Count (lr={}, \\beta={})",
                                   GreedyPolicy,
                                   [['learning_rate', [0.00001, 0.00005, 0.0001, 0.0005, 0.001, 0.005, 0.01]], ['beta', [0.05]],
-                                   ['pseudo_count', [True]], ['pseudo_count_type', ['count_based']]])
+                                   ['pseudo_count', [True]], ['pseudo_count_type', ['pseudo_count']]])
 
         PolicyCollection.register("deterministic_bootstrapped_cb_pseudo_count",
                                   "Deterministic PC Bootstrapped (K={},  \\beta={})",
                                   GreedyPolicy,
-                                  [['num_heads', [7]], ['beta', [0.001, 0.005, 0.01, 0.05, 0.1, 0.2, 0.3, 1, 5, 10]],
-                                   ['pseudo_count', [True]], ['pseudo_count_type', ['count_based']]])
+                                  [['num_heads', [7]], ['beta', [0.001, 0.005, 0.01, 0.05, 0.1, 0.2, 0.3, 1]],
+                                   ['pseudo_count', [True]], ['pseudo_count_type', ['count_based']]]),
+
+        PolicyCollection.register("ucb_infogain",
+                                  "UCB-InfoGain (lambda={})",
+                                  GreedyPolicy,
+                                  [['lambda', [0.05, 0.01, 0.05]], ['ucb_infogain', [True]], ['num_heads', [7]], ['info_gain_temp', [0.05, 0.1, 1]]])
 
     @staticmethod
     def register(key, name, policy, parameters):

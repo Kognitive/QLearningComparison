@@ -79,9 +79,10 @@ class QLearningAgent:
             # expanded vector
             current_states = environment.get_current_state()
             rewards = environment.get_rewards()
-            exp_current_states = tf.expand_dims(current_states, 1)
 
-            if self.config['ucb_infogain']:
+            if not('ucb_infogain' in config and self.config['ucb_infogain']):
+
+                exp_current_states = tf.expand_dims(current_states, 1)
 
                 # Get indices for easy access of the various models
                 ind_mod_head = tf.stack([model_range, current_heads], axis=1)
@@ -93,9 +94,9 @@ class QLearningAgent:
                 q_vector = tf.gather_nd(q_tensor, ind_mod_head_cstate)
 
             else:
-                ind_mod_head = tf.stack([model_range, exp_current_states], axis=1)
+                ind_mod_head = tf.stack([model_range, current_states], axis=1)
                 ext_q_tensor = tf.gather_nd(tf.transpose(q_tensor, [0, 2, 1, 3]), ind_mod_head)
-                q_mean, q_var = tf.nn.moments(ext_q_tensor, axis=[1])
+                q_mean, q_var = tf.nn.moments(ext_q_tensor, axes=[1])
                 q_vector = q_mean + self.config['lambda'] * q_var
 
                 # get the info gain bonus

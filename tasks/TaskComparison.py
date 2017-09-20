@@ -9,6 +9,8 @@ from collection.ColorCollection import ColorCollection
 from collection.PolicyCollection import PolicyCollection
 from environments.GridWorld import GridWorld
 from environments.DeepSeaExploration import DeepSeaExploration
+from environments.DeepSeaExplorationTwo import DeepSeaExplorationTwo
+from environments.DeepSeaExplorationThree import DeepSeaExplorationThree
 from environments.ExplorationChain import ExplorationChain
 from manager.DirectoryManager import DirectoryManager
 from plots.MultiDimensionalHeatMap import MultiDimensionalHeatmap
@@ -16,22 +18,13 @@ from plots.MultiDimensionalHeatMap import MultiDimensionalHeatmap
 # ------------------------------ SETTINGS ------------------------------------
 
 run = list()
-new_envs = [[ExplorationChain, [40], lambda n: n], [GridWorld, [15], lambda n: 2 * n], [DeepSeaExploration, [20], lambda n: n]]
 
-new_batch_names = [["pc_pseudo_count", []], ["bootstrapped", [2]],
-                   ["deterministic_bootstrapped_cb_pseudo_count", []], ["bootstrapped_heads_per_sample", [2, 4]],
-                   ["cb_pseudo_count", []], ["eps_greedy", []], ["boltzmann", []], ["optimistic", []], ["ucb", []]]
-
+new_envs = [[ExplorationChain, [100], lambda n: n]]
+new_batch_names = [['eps_greedy', []], ['boltzmann', []], ['optimistic', []], ['ucb', []], ['cb_pseudo_count', []], ['bootstrapped', []]]
 run.append([new_envs, new_batch_names])
 
-#new_envs = [[ExplorationChain, [25, 30, 35, 40, 45, 50], lambda n: n + 9],
-#             [DeepSeaExploration, [10, 15, 20], lambda n: n],
-#             [GridWorld, [10, 15, 20], lambda n: 2 * n + 9]]
 
-#new_batch_names = [["eps_greedy", []], ["bootstrapped", []], ["boltzmann", []], ["cb_pseudo_count", []]]
-#run.append([new_envs, new_batch_names])
-
-save_directory = "run/TaskComparisonPresi"
+save_directory = "run/TaskComparisonPresiNew"
 num_models = 2500
 num_episodes = 5000
 
@@ -47,7 +40,7 @@ for [all_envs, batch_names] in run:
         for N in problem_sizes:
             for [batch_name, record_indices] in batch_names:
 
-                # create variable for the steps and do this amount of steps.
+                # create variable for the steps a30nd do this amount of steps.
                 seed = 3
                 num_steps = problem_to_step(N)
 

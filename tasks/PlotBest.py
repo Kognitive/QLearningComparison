@@ -12,11 +12,11 @@ rc('font',**{'family': 'sans-serif', 'sans-serif': ['Helvetica']})
 rc('text', usetex=True)
 
 # define the names which you want to be plotted
-root_folder = "run/TaskComparison"
-env_folder = "grid_world_10"
+root_folder = "run/Final"
+env_folder = "exp_chain_40"
 plot_best_names = ["eps_greedy", "boltzmann", 'optimistic', 'ucb', "bootstrapped", "cb_pseudo_count"]
 use_best_at_train = False
-cut_at = 2000
+cut_at = 5000
 show_best = 1
 plot_both = False
 
@@ -87,7 +87,7 @@ if plot_both:
     plt.show()
 else:
     plt.axhline(y=1, color='r', linestyle=':', label='Optimal')
-    plt.xlim([0, n])
+    # plt.xlim([0, n])
     # plt.suptitle("On-Policy (Training)")
     #top.set_yscale("log", nonposy='clip')
     #bottom.set_yscale("log", nonposy='clip')

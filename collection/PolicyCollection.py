@@ -55,7 +55,7 @@ class PolicyCollection:
                                   "CB Pseudo Count ($\\beta$={})",
                                   GreedyPolicy,
                                   [['beta', [0.001, 0.005, 0.01, 0.05, 0.1, 0.2, 0.3, 1, 5, 10]],
-                                   ['pseudo_count', [True]], ['pseudo_count_type', ['count_based']]])
+                                   ['pseudo_count', [True]], ['pseudo_count_type', ['count_based']], ['create_density', [True]]])
 
         PolicyCollection.register("optimistic",
                                   "Optimistic",
@@ -65,7 +65,7 @@ class PolicyCollection:
         PolicyCollection.register("ucb",
                                   "UCB-Greedy (p={})",
                                   GreedyPolicy,
-                                  [['p', [0.001, 0.005, 0.01, 0.05, 0.1, 0.2, 0.3, 1, 5, 10]], ['ucb', [True]]])
+                                  [['p', [0.001, 0.005, 0.01, 0.05, 0.1, 0.2, 0.3, 1, 5, 10]], ['ucb', [True]], ['create_density', [True]]])
 
         PolicyCollection.register("bootstrapped_heads_per_sample",
                                   "Deterministic Bootstrapped (H={}, K={})",
@@ -82,7 +82,7 @@ class PolicyCollection:
                                   "Deterministic PC Bootstrapped (K={},  \\beta={})",
                                   GreedyPolicy,
                                   [['num_heads', [7]], ['beta', [0.001, 0.005, 0.01, 0.05, 0.1, 0.2, 0.3, 1]],
-                                   ['pseudo_count', [True]], ['pseudo_count_type', ['count_based']]]),
+                                   ['pseudo_count', [True]], ['pseudo_count_type', ['count_based']], ['create_density', [True]]]),
 
         PolicyCollection.register("ucb_infogain",
                                   "UCB-InfoGain (lambda={})",

@@ -12,8 +12,8 @@ rc('font',**{'family': 'sans-serif', 'sans-serif': ['Helvetica']})
 rc('text', usetex=True)
 
 # define the names which you want to be plotted
-root_folder = "run/Final"
-env_folder = "exp_chain_40"
+root_folder = "run/TaskComparisonPresiNew"
+env_folder = "exp_chain_100"
 plot_best_names = ["eps_greedy", "boltzmann", 'optimistic', 'ucb', "bootstrapped", "cb_pseudo_count"]
 use_best_at_train = False
 cut_at = 5000

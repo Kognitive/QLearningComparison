@@ -56,7 +56,8 @@ class QLearningAgent:
         with tf.variable_scope(name):
 
             # do some initialisation stuff
-            self.ref_density, self.cb_density = self.init_submodules()
+            if 'create_density' in self.config and self.config['create_density']:
+                self.ref_density, self.cb_density = self.init_submodules()
             init = self.create_initializer()
 
             # obtain the q_tensor, the active q function head, the indices of the selected heads
@@ -113,21 +114,27 @@ class QLearningAgent:
                               lambda: tf.identity(self.best_actions),
                               lambda: tf.identity(self.normal_actions))
 
-            # Get access to the density models
-            self.cb_complete_densities, cb_density_values, cb_step_value, \
-                self.ref_complete_densities, dependency_list = \
-                self.get_density_models(current_states, actions, ind_active_heads)
+            dep_list = list()
+            dep_list.append(tf.no_op())
+            if 'create_density' in self.config and self.config['create_density']:
 
-            # Reduce the density models according to the currently active heads
-            red_indices = tf.stack([model_range, current_heads], axis=1)
-            red_cb_density_values = tf.gather_nd(cb_density_values, red_indices)
-            red_cb_step_value = tf.gather_nd(cb_step_value, red_indices)
+                # Get access to the density models
+                self.cb_complete_densities, cb_density_values, cb_step_value, \
+                    self.ref_complete_densities, dependency_list = \
+                    self.get_density_models(current_states, actions, ind_active_heads)
 
-            with tf.control_dependencies(dependency_list):
+                # Reduce the density models according to the currently active heads
+                red_indices = tf.stack([model_range, current_heads], axis=1)
+                red_cb_density_values = tf.gather_nd(cb_density_values, red_indices)
+                red_cb_step_value = tf.gather_nd(cb_step_value, red_indices)
+                dep_list = dependency_list
+
+            with tf.control_dependencies(dep_list):
 
                 # get operation to perform a action on the graph
                 self.apply_actions, next_states = environment.perform_actions(actions)
-                rewards = self.get_shaped_rewards(rewards, red_cb_step_value, red_cb_density_values)
+                if 'create_density' in self.config and self.config['create_density']:
+                    rewards = self.get_shaped_rewards(rewards, red_cb_step_value, red_cb_density_values)
 
                 self.q_tensor_update = self.get_q_tensor_update(
                     ind_active_heads, q_tensor, discount, self.lr,

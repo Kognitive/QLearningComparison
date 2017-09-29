@@ -19,14 +19,14 @@ from plots.MultiDimensionalHeatMap import MultiDimensionalHeatmap
 
 run = list()
 
-new_envs = [[ExplorationChain, [100], lambda n: n]]
-new_batch_names = [['eps_greedy', []], ['boltzmann', []], ['optimistic', []], ['ucb', []], ['cb_pseudo_count', []], ['bootstrapped', []]]
+new_envs = [[ExplorationChain, [600], lambda n: n + 9], [GridWorld, [20], lambda n: 2 * n]]
+new_batch_names = [['cb_pseudo_count', []], ['eps_greedy', []], ['boltzmann', []], ['optimistic', []], ['ucb', []], ['bootstrapped', []]]
 run.append([new_envs, new_batch_names])
 
 
-save_directory = "run/TaskComparisonPresiNew"
-num_models = 2500
-num_episodes = 5000
+save_directory = "run/TaskComparisonThesis"
+num_models = 1000
+num_episodes = 10000
 
 #record_indices = []  # 0, 1, 2, 3]
 plot_models = 1

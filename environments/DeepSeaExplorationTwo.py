@@ -27,7 +27,7 @@ class DeepSeaExplorationTwo(DeterministicMDP):
         # sample the left action
         left = 1
         right = 1 - left
-        chest = 2 * 0 - 1
+        chest = 2 * 1 - 1
 
         # iterate over and fill with the transitions
         for x in range(N):

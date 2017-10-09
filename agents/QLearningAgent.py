@@ -335,7 +335,7 @@ class QLearningAgent:
             sigma = offset / 2
 
             if self.is_activated('init_gaussian'):
-                init = tf.random_normal(sah_list, mu, sigma, dtype=tf.float64)
+                init = tf.random_uniform(sah_list, self.config['min_q'] - offset, self.config['min_q'], dtype=tf.float64)#tf.random_normal(sah_list, mu, sigma, dtype=tf.float64)
 
             else:
                 init = tf.random_uniform(sah_list, self.config['min_q'] - offset, self.config['min_q'], dtype=tf.float64)

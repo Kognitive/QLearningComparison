@@ -39,7 +39,7 @@ class PolicyCollection:
         PolicyCollection.register("bootstrapped",
                                   "Deterministic Bootstrapped (K={})",
                                   GreedyPolicy,
-                                  [['num_heads', [1, 3, 5, 7, 10]]])
+                                  [['num_heads', [1, 3, 5, 7, 10, 20]], ['init_gaussian', [False]]])
 
         PolicyCollection.register("eps_greedy",
                                   "$\\epsilon$-Greedy ($\\epsilon$={})",
@@ -70,7 +70,7 @@ class PolicyCollection:
         PolicyCollection.register("bootstrapped_heads_per_sample",
                                   "Deterministic Bootstrapped (H={}, K={})",
                                   GreedyPolicy,
-                                  [['heads_per_sample', [1, 2, 3, 4, 5, 6, 7]], ['num_heads', [7]]])
+                                  [['heads_per_sample', [1, 2, 3, 4, 5, 6, 7]], ['num_heads', [7]], ['init_gaussian', [False]]])
 
         PolicyCollection.register("pc_pseudo_count",
                                   "PC Pseudo Count (lr={}, \\beta={})",
@@ -82,12 +82,12 @@ class PolicyCollection:
                                   "Deterministic PC Bootstrapped (K={},  \\beta={})",
                                   GreedyPolicy,
                                   [['num_heads', [7]], ['beta', [0.001, 0.005, 0.01, 0.05, 0.1, 0.2, 0.3, 1]],
-                                   ['pseudo_count', [True]], ['pseudo_count_type', ['count_based']], ['create_density', [True]]]),
+                                   ['pseudo_count', [True]], ['pseudo_count_type', ['count_based']], ['create_density', [True]], ['init_gaussian', [False]]]),
 
         PolicyCollection.register("ucb_infogain",
                                   "UCB-InfoGain (lambda={})",
                                   GreedyPolicy,
-                                  [['lambda', [0.05, 0.01, 0.05]], ['ucb_infogain', [True]], ['num_heads', [7]], ['info_gain_temp', [0.05, 0.1, 1]]])
+                                  [['lambda', [0.01, 0.05, 0.1, 0.5]], ['ucb_infogain', [True]], ['num_heads', [3]], ['info_gain_temp', [0.01, 0.05, 0.1, 0.5, 1]]])
 
     @staticmethod
     def register(key, name, policy, parameters):

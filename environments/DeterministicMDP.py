@@ -1,5 +1,6 @@
 # import the necessary packages
 import numpy as np
+import matplotlib.pyplot as plt
 import tensorflow as tf
 
 from spaces.DiscreteSpace import DiscreteSpace
@@ -144,4 +145,4 @@ class DeterministicMDP:
             self.optimal_reward = reward
             self.q_function = q_function
 
-        return self.optimal_reward, np.min(self.q_function), np.max(self.q_function)
+        return self.optimal_reward, np.min(self.q_function), np.max(self.q_function), q_function

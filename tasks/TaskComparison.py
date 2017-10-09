@@ -2,15 +2,19 @@ import os
 import matplotlib
 matplotlib.use("Agg")
 import numpy as np
+import matplotlib.pyplot as plt
 import tensorflow as tf
+import time
 
 from agents.QLearningAgent import QLearningAgent
 from collection.ColorCollection import ColorCollection
 from collection.PolicyCollection import PolicyCollection
 from environments.GridWorld import GridWorld
+from environments.BinaryFlipEnvironment import BinaryFlipEnvironment
 from environments.DeepSeaExploration import DeepSeaExploration
 from environments.DeepSeaExplorationTwo import DeepSeaExplorationTwo
 from environments.DeepSeaExplorationThree import DeepSeaExplorationThree
+from environments.DeepSeaExplorationFour import DeepSeaExplorationFour
 from environments.ExplorationChain import ExplorationChain
 from manager.DirectoryManager import DirectoryManager
 from plots.MultiDimensionalHeatMap import MultiDimensionalHeatmap
@@ -19,13 +23,21 @@ from plots.MultiDimensionalHeatMap import MultiDimensionalHeatmap
 
 run = list()
 
-new_envs = [[ExplorationChain, [600], lambda n: n + 9], [GridWorld, [20], lambda n: 2 * n]]
-new_batch_names = [['cb_pseudo_count', []], ['eps_greedy', []], ['boltzmann', []], ['optimistic', []], ['ucb', []], ['bootstrapped', []]]
+new_envs = [[ExplorationChain, [40], lambda n: n, 1000]]
+new_batch_names = [['cb_pseudo_count', []]]
+run.append([new_envs, new_batch_names])
+
+new_envs = [[ExplorationChain, [450], lambda n: n, 250]]
+new_batch_names = [['cb_pseudo_count', []]]
+run.append([new_envs, new_batch_names])
+
+new_envs = [[GridWorld, [15], lambda n: 2 * n, 250]]
+new_batch_names = [['eps_greedy', []], ['boltzmann', []], ['optimistic', []], ['ucb', []], ['bootstrapped', []], ['cb_pseudo_count', []]]
 run.append([new_envs, new_batch_names])
 
 
 save_directory = "run/TaskComparisonThesis"
-num_models = 1000
+#num_models = 1000
 num_episodes = 10000
 
 #record_indices = []  # 0, 1, 2, 3]
@@ -35,7 +47,7 @@ save_frame = 1
 fps = 15
 
 for [all_envs, batch_names] in run:
-    for [env_build, problem_sizes, problem_to_step] in all_envs:
+    for [env_build, problem_sizes, problem_to_step, num_models] in all_envs:
 
         for N in problem_sizes:
             for [batch_name, record_indices] in batch_names:
@@ -49,7 +61,9 @@ for [all_envs, batch_names] in run:
                 tf.set_random_seed(seed)
                 graph = tf.Graph()
                 with graph.as_default():
-                    with tf.Session(graph=graph) as sess:
+                    tf_config = tf.ConfigProto(log_device_placement=True)
+                    tf_config.gpu_options.allow_growth=True
+                    with tf.Session(graph=graph, config=tf_config) as sess:
 
                         env = env_build("test", [num_models], N)
                         state_space = env.state_space
@@ -69,7 +83,7 @@ for [all_envs, batch_names] in run:
 
                         # Determine the agent count
                         num_policies = len(policies)
-                        optimal_ih_rew, min_q, max_q = env.get_optimal(num_steps, 0.99)
+                        optimal_ih_rew, min_q, max_q, _ = env.get_optimal(num_steps, 0.99)
 
                         # --------------------------------------------------------------------------
 
@@ -140,9 +154,9 @@ for [all_envs, batch_names] in run:
                         training_var[0, :] = 0
 
                         # define the evaluation rewards
-                        val_rewards = np.empty((num_episodes + 1, len(policies), num_models))
-                        val_mean = np.empty((num_episodes + 1, len(policies)))
-                        val_var = np.empty((num_episodes + 1, len(policies)))
+                        val_rewards = np.zeros((num_episodes + 1, len(policies), num_models))
+                        val_mean = np.zeros((num_episodes + 1, len(policies)))
+                        val_var = np.zeros((num_episodes + 1, len(policies)))
 
                         # set value for first episode
                         val_rewards[0, :, :] = 0
@@ -167,8 +181,7 @@ for [all_envs, batch_names] in run:
 
                         # iterate over episodes
                         for episode in range(1, num_episodes + 1):
-
-                            print("Current Episode is: " + str(episode))
+                            start = time.time()
 
                             # reset all environments
                             sess.run(reset_ops)
@@ -192,27 +205,29 @@ for [all_envs, batch_names] in run:
                             training_mean[episode, :] = np.mean(training_rewards[episode, :, :], axis=1)
                             training_var[episode, :] = np.var(training_rewards[episode, :, :], axis=1)
 
-                            # reset all environments
-                            sess.run(reset_ops)
+                            if False:
 
-                            # for each agent sample a new head
-                            state_dict = {}
-                            for k in range(num_policies):
-                                agents[k].sample_head()
-                                state_dict[agents[k].use_best] = True
+                                # reset all environments
+                                sess.run(reset_ops)
 
-                            # repeat this for the number of steps
-                            for k in range(num_steps):
+                                # for each agent sample a new head
+                                state_dict = {}
+                                for k in range(num_policies):
+                                    agents[k].sample_head()
+                                    state_dict[agents[k].use_best] = True
 
-                                # Execute all actions and collect rewards
-                                sess.run(perform_ops, feed_dict=state_dict)
+                                # repeat this for the number of steps
+                                for k in range(num_steps):
 
-                            # copy values
-                            val_rewards[episode, :, :] = sess.run(cum_rew_ops) / optimal_ih_rew
+                                    # Execute all actions and collect rewards
+                                    sess.run(perform_ops, feed_dict=state_dict)
 
-                            # determine mean and variance
-                            val_mean[episode, :] = np.mean(val_rewards[episode, :, :], axis=1)
-                            val_var[episode, :] = np.var(val_rewards[episode, :, :], axis=1)
+                                # copy values
+                                val_rewards[episode, :, :] = sess.run(cum_rew_ops) / optimal_ih_rew
+
+                                # determine mean and variance
+                                val_mean[episode, :] = np.mean(val_rewards[episode, :, :], axis=1)
+                                val_var[episode, :] = np.var(val_rewards[episode, :, :], axis=1)
 
                             # when a frame should be recorded
                             if len(record_indices) > 0 and (episode - 1) % save_frame == 0:
@@ -231,6 +246,8 @@ for [all_envs, batch_names] in run:
                                     # store the density
                                     density_plots[i].plot(res_densities[i])
                                     density_plots[i].store_frame()
+
+                            print("\tEpisode {} finished after {} ms".format(episode, round((time.time() - start) * 1000, 2)))
 
                 # start the recording
                 for i in range(len(q_plots)):

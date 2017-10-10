@@ -23,22 +23,23 @@ from plots.MultiDimensionalHeatMap import MultiDimensionalHeatmap
 
 run = list()
 
-new_envs = [[ExplorationChain, [40], lambda n: n, 1000]]
-new_batch_names = [['cb_pseudo_count', []]]
+new_envs = [[BinaryFlipEnvironment, [4], lambda n: 2 * n, 1000]]
+new_batch_names = [['bootstrapped', []], ['eps_greedy', []],
+                   ['boltzmann', []], ['cb_pseudo_count', []],
+                   ['optimistic', []], ['ucb', []],
+                   ['bootstrapped_heads_per_sample', []], ['ucb_infogain', []]]
 run.append([new_envs, new_batch_names])
 
-new_envs = [[ExplorationChain, [450], lambda n: n, 250]]
-new_batch_names = [['cb_pseudo_count', []]]
+new_envs = [[GridWorld, [10], lambda n: 2 * n, 1000]]
+new_batch_names = [['bootstrapped', []], ['eps_greedy', []],
+                   ['boltzmann', []], ['cb_pseudo_count', []],
+                   ['optimistic', []], ['ucb', []],
+                   ['bootstrapped_heads_per_sample', []], ['ucb_infogain', []]]
 run.append([new_envs, new_batch_names])
-
-new_envs = [[GridWorld, [15], lambda n: 2 * n, 250]]
-new_batch_names = [['eps_greedy', []], ['boltzmann', []], ['optimistic', []], ['ucb', []], ['bootstrapped', []], ['cb_pseudo_count', []]]
-run.append([new_envs, new_batch_names])
-
 
 save_directory = "run/TaskComparisonThesis"
 #num_models = 1000
-num_episodes = 10000
+num_episodes = 5000
 
 #record_indices = []  # 0, 1, 2, 3]
 plot_models = 1

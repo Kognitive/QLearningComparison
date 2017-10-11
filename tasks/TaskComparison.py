@@ -23,29 +23,26 @@ from plots.MultiDimensionalHeatMap import MultiDimensionalHeatmap
 
 run = list()
 
-new_envs = [[BinaryFlipEnvironment, [4], lambda n: 2 * n, 1000]]
-new_batch_names = [['bootstrapped', []], ['eps_greedy', []],
+new_envs = [[GridWorld, [10], lambda n: 2 * n, 2500]]
+new_batch_names = [['shared_info gain_bootstrap', []], ['bootstrapped', []], ['ucb_infogain', []],
                    ['boltzmann', []], ['cb_pseudo_count', []],
                    ['optimistic', []], ['ucb', []],
-                   ['bootstrapped_heads_per_sample', []], ['ucb_infogain', []]]
+                   ['bootstrapped_heads_per_sample', []], ['ucb_infogain', []],
+                   ['pc_pseudo_count', []]]
+
+run.append([new_envs, new_batch_names])
 run.append([new_envs, new_batch_names])
 
-new_envs = [[GridWorld, [10], lambda n: 2 * n, 1000]]
-new_batch_names = [['bootstrapped', []], ['eps_greedy', []],
-                   ['boltzmann', []], ['cb_pseudo_count', []],
-                   ['optimistic', []], ['ucb', []],
-                   ['bootstrapped_heads_per_sample', []], ['ucb_infogain', []]]
-run.append([new_envs, new_batch_names])
-
-save_directory = "run/TaskComparisonThesis"
+save_directory = "run/CompleteRuns"
 #num_models = 1000
-num_episodes = 5000
+num_episodes = 10000
 
 #record_indices = []  # 0, 1, 2, 3]
 plot_models = 1
 plot_heads = 5
 save_frame = 1
 fps = 15
+shared_learning_steps = 32
 
 for [all_envs, batch_names] in run:
     for [env_build, problem_sizes, problem_to_step, num_models] in all_envs:
@@ -84,7 +81,7 @@ for [all_envs, batch_names] in run:
 
                         # Determine the agent count
                         num_policies = len(policies)
-                        optimal_ih_rew, min_q, max_q, _ = env.get_optimal(num_steps, 0.99)
+                        optimal_ih_rew, minimal_ih_rew, min_q, max_q, _ = env.get_optimal(num_steps, 0.99)
 
                         # --------------------------------------------------------------------------
 
@@ -95,6 +92,7 @@ for [all_envs, batch_names] in run:
                         environments = list()
                         densities = list()
                         q_functions = list()
+                        get_best_shared = list()
                         for pol_num in range(num_policies):
 
                             # Get policies and unique name
@@ -139,6 +137,9 @@ for [all_envs, batch_names] in run:
                                                             [plot_models, np.minimum(policy_config['num_heads'], plot_heads),
                                                              state_space.get_size(), action_space.get_size()],
                                                             0.8, 'inferno'))
+
+                                if 'shared_learning' in policy_config and policy_config['shared_learning']:
+                                    get_best_shared.append(agent.get_best_heads)
 
                         # init variables
                         init = tf.global_variables_initializer()
@@ -196,11 +197,14 @@ for [all_envs, batch_names] in run:
                             # repeat this for the number of steps
                             for k in range(num_steps):
 
+                                if len(get_best_shared) > 0 and k % shared_learning_steps == 0:
+                                    sess.rún(shared_learning_steps)
+
                                 # receive rewards and add
                                 sess.run(update_and_receive_rewards, feed_dict=state_dict)
 
                             # copy values
-                            training_rewards[episode, :, :] = sess.run(cum_rew_ops) / optimal_ih_rew
+                            training_rewards[episode, :, :] = (sess.run(cum_rew_ops) - minimal_ih_rew) / (optimal_ih_rew - minimal_ih_rew)
 
                             # determine mean and variance
                             training_mean[episode, :] = np.mean(training_rewards[episode, :, :], axis=1)

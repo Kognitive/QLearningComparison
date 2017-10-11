@@ -65,6 +65,13 @@ class QLearningAgent:
             model_range = tf.range(0, num_models, dtype=tf.int64)
             q_tensor, current_heads, change_head = self.create_q_tensor(init)
             ind_active_heads, sample_heads = self.get_head_indices(num_models, num_heads, heads_per_sample)
+
+            # when shared learning is active
+            if not self.is_activated('shared_learning'):
+                ind_best_heads = current_heads
+            else:
+                ind_best_heads = tf.Variable(tf.zeros([num_models], dtype=tf.int64))
+
             self.q_tensor = q_tensor
 
             # this action can be used to sample new heads
@@ -137,8 +144,14 @@ class QLearningAgent:
                     rewards = self.get_shaped_rewards(rewards, red_cb_step_value, red_cb_density_values)
 
                 self.q_tensor_update = self.get_q_tensor_update(
-                    ind_active_heads, q_tensor, discount, self.lr,
+                    ind_active_heads, ind_best_heads, q_tensor, discount, self.lr,
                     current_states, actions, rewards, next_states, self.apply_actions)
+
+            if self.is_activated("shared_learning"):
+                ind_mod_head = tf.stack([model_range, current_states, actions], axis=1)
+                all_heads = tf.gather_nd(tf.transpose(q_tensor, [0, 2, 3, 1]), ind_mod_head)
+                best_heads = tf.argmax(all_heads, axis=1)
+                self.get_best_heads = tf.assign(ind_best_heads, best_heads)
 
     def get_density_models(self, current_states, actions, ind_active_heads):
 
@@ -210,7 +223,7 @@ class QLearningAgent:
 
         return shaped_rewards
 
-    def get_q_tensor_update(self, ind_heads, q_tensor, discount, lr, current_states, actions, rewards, next_states, apply_actions):
+    def get_q_tensor_update(self, ind_heads, ind_best_heads, q_tensor, discount, lr, current_states, actions, rewards, next_states, apply_actions):
 
         num_models = self.config['num_models']
         num_heads = self.config['num_heads']
@@ -220,6 +233,7 @@ class QLearningAgent:
         # we have to modify the states and actions a little bit
         ind_models = self.duplicate_each_element(model_range, heads_per_sample)
         ind_states = self.duplicate_each_element(current_states, heads_per_sample)
+        ind_best_heads_duplic = tf.cast(self.duplicate_each_element(ind_best_heads, heads_per_sample), tf.int64)
         ind_actions = self.duplicate_each_element(actions, heads_per_sample)
         ind_next_states = self.duplicate_each_element(next_states, heads_per_sample)
 
@@ -230,10 +244,14 @@ class QLearningAgent:
         ind_current_q_values = tf.stack([ind_models, ind_heads, ind_states, ind_actions], axis=1)
         current_q_values = tf.gather_nd(q_tensor, ind_current_q_values)
 
+        # retrieve the best model
+        ind_best_q_values = tf.stack([ind_models, ind_best_heads_duplic, ind_states], axis=1)
+        best_q_values = tf.gather_nd(q_tensor, ind_best_q_values)
+        actions = tf.argmax(best_q_values, axis=1)
+
         # obtain the best q function available for the next state
-        ind_next_q_vectors = tf.stack([ind_models, ind_heads, ind_next_states], axis=1)
-        next_q_vectors = tf.gather_nd(q_tensor, ind_next_q_vectors)
-        next_q_values = tf.reduce_max(next_q_vectors, axis=1)
+        ind_next_q_vectors = tf.stack([ind_models, ind_heads, ind_next_states, tf.squeeze(actions)], axis=1)
+        next_q_values = tf.gather_nd(q_tensor, ind_next_q_vectors)
 
         # duplicate the rewards as well
         mod_shaped_rewards = self.duplicate_each_element(rewards, heads_per_sample)
@@ -335,7 +353,7 @@ class QLearningAgent:
             sigma = offset / 2
 
             if self.is_activated('init_gaussian'):
-                init = tf.random_uniform(sah_list, self.config['min_q'] - offset, self.config['min_q'], dtype=tf.float64)#tf.random_normal(sah_list, mu, sigma, dtype=tf.float64)
+                init = tf.random_normal(sah_list, mu, sigma, dtype=tf.float64)
 
             else:
                 init = tf.random_uniform(sah_list, self.config['min_q'] - offset, self.config['min_q'], dtype=tf.float64)

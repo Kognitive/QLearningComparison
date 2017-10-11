@@ -145,4 +145,16 @@ class DeterministicMDP:
             self.optimal_reward = reward
             self.q_function = q_function
 
-        return self.optimal_reward, np.min(self.q_function), np.max(self.q_function), q_function
+            # create new environment and simulate
+            minimal_policy = np.argmin(q_function, axis=1)
+            reward = 0
+            current_state = self.initial_state
+
+            # run for specified number of steps
+            for k in range(steps):
+                reward += self.reward_function[current_state, minimal_policy[current_state]]
+                current_state = self.transition_function[current_state, minimal_policy[current_state]]
+
+            self.minimal_reward = reward
+
+        return self.optimal_reward, self.minimal_reward, np.min(self.q_function), np.max(self.q_function), q_function

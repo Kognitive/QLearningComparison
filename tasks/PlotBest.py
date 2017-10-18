@@ -1,7 +1,7 @@
 from collection.ColorCollection import ColorCollection
 from collection.PolicyCollection import PolicyCollection
 
-folder = 'run/broadsearch_q_learning/2017-09-15_06-25-02/bin_flip_8/'
+folder = '/home/markus/Git/BT/Evaluations/runs/grid_world_5/'
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -12,89 +12,99 @@ rc('font',**{'family': 'sans-serif', 'sans-serif': ['Helvetica']})
 rc('text', usetex=True)
 
 # define the names which you want to be plotted
-root_folder = "run/TaskComparisonThesis"
-env_folder = "grid_world_10"
-plot_best_names = ["eps_greedy", "boltzmann", 'optimistic', 'ucb', "bootstrapped", "cb_pseudo_count"]
-use_best_at_train = False
-cut_at = 10000
+root_folder = "/home/markus/Git/BT/Thesis/img/Evaluations/runs/"
+out_folder = "/home/markus/Git/BT/Thesis/img/Evaluations/"
+file_name = "old_strategies"
+#root_folder = "/home/markus/Git/BT/Experiments/presi/"
+#root_folder = "/home/markus/Git/BT/Experiments/unmerged/"
+env_folders = [["grid_world_5", 1200], ["exp_chain_50", 150], ["shared_chain_33", 1000], ["bin_flip_4", 1000], ["deep_sea_10", 200]]
+#plot_best_names = [["cb_pseudo_count", 0], ["bootstrapped", 1], ["ucb_infogain", 0], ["shared_bootstrap", 0]]
+plot_best_names = [["eps_greedy", 0], ["boltzmann", 0], ["ucb", 0], ["optimistic", 0]]
+use_best_at_train = True
+cut_at_min = -1
 show_best = 1
 plot_both = False
-
+plot_variance = True
 # matrix for best rewards and list for best labels
-use_cumulative = False
+correct = False
+use_cumulative = True
 best_tr_rewards = None
 best_va_rewards = None
+best_tr_var_rewards = None
 best_labels = list()
 n = 0
 m = len(plot_best_names)
+for [env_folder, cut_at] in env_folders:
+    print("-" * 40)
+    print(env_folder)
+    best_tr_rewards = None
+    # get environemnt path and iterate over all agents which should be plotted
+    env_path = path.join(root_folder, env_folder)
+    for j in range(m):
 
-# get environemnt path and iterate over all agents which should be plotted
-env_path = path.join(root_folder, env_folder)
-for j in range(m):
+        # define the reward tensors
+        i = j * show_best
+        name = plot_best_names[j][0]
+        start = plot_best_names[j][1]
+        batch = PolicyCollection.get_batch(name)
+        agent_path = path.join(env_path, name)
+        va_tensor = np.loadtxt(path.join(agent_path, "va_rewards_mean.np"))
+        if plot_variance: tr_var_tensor = np.loadtxt(path.join(agent_path, "tr_rewards_var.np"))
+        tr_tensor = np.loadtxt(path.join(agent_path, "tr_rewards_mean.np"))
+        tr_tensor = tr_tensor if np.ndim(tr_tensor) == 2 else np.expand_dims(tr_tensor, 1)
+        va_tensor = va_tensor if np.ndim(va_tensor) == 2 else np.expand_dims(va_tensor, 1)
+        if plot_variance:
+            tr_var_tensor = tr_var_tensor if np.ndim(tr_var_tensor) == 2 else np.expand_dims(tr_var_tensor, 1)
 
-    # define the reward tensors
-    i = j * show_best
-    name = plot_best_names[j]
-    batch = PolicyCollection.get_batch(name)
-    agent_path = path.join(env_path, name)
-    va_tensor = np.loadtxt(path.join(agent_path, "va_rewards_mean.np"))
-    tr_tensor = np.loadtxt(path.join(agent_path, "tr_rewards_mean.np"))
-    tr_tensor = tr_tensor if np.rank(tr_tensor) == 2 else np.expand_dims(tr_tensor, 1)
-    va_tensor = va_tensor if np.rank(va_tensor) == 2 else np.expand_dims(va_tensor, 1)
+        # init best rewards
+        if best_tr_rewards is None:
+            n = np.minimum(np.size(tr_tensor, 0), np.maximum(cut_at, cut_at_min))
+            best_tr_rewards = np.empty((n, m * show_best))
+            if plot_variance: best_tr_var_rewards = np.empty((n, m * show_best))
+            best_va_rewards = np.empty((n, m * show_best))
 
-    # init best rewards
-    if best_tr_rewards is None:
-        n = np.minimum(np.size(tr_tensor, 0), cut_at)
-        best_tr_rewards = np.empty((n, m * show_best))
-        best_va_rewards = np.empty((n, m * show_best))
+        # check whether to use the cumulative
+        selected = tr_tensor if use_best_at_train else va_tensor
+        arr = np.sum(selected, axis=0) if use_cumulative else selected[-1]
 
-    # check whether to use the cumulative
-    selected = tr_tensor if use_best_at_train else va_tensor
-    arr = np.sum(selected, axis=0) if use_cumulative else selected[-1]
+        # get the best indices
+        best_indices = np.argmax(arr[start:]) + start
+        best_indices = best_indices if np.ndim(best_indices) == 1 else np.expand_dims(best_indices, 0)
+        best_indices = best_indices[-show_best:]
 
-    # get the best indices
-    best_indices = np.argpartition(arr, -show_best)
-    best_indices = best_indices if np.rank(best_indices) == 1 else np.expand_dims(best_indices, 0)
-    best_indices = best_indices[-show_best:]
+        # get best rewards
+        best_tr_rewards[:, i:i+show_best] = tr_tensor[:n, best_indices]
+        best_va_rewards[:, i:i+show_best] = va_tensor[:n, best_indices]
+        if plot_variance: best_tr_var_rewards[:, i:i+show_best] = tr_var_tensor[:n, best_indices]
+        [best_labels.append(batch[l][0]) for l in best_indices]
 
-    # get best rewards
-    best_tr_rewards[:, i:i+show_best] = tr_tensor[:n, best_indices]
-    best_va_rewards[:, i:i+show_best] = va_tensor[:n, best_indices]
-    [best_labels.append(batch[l][0]) for l in best_indices]
+    # get the colors as well
+    colors = ColorCollection.get_colors()
 
-# get the colors as well
-colors = ColorCollection.get_colors()
+    ratio = 11.5 / 4.2
+    x = 2.5
+    fig_error = plt.figure(0)
+    plt.clf()
+    fig_error.set_size_inches(x * ratio, x)
 
-fig_error = plt.figure(0)
-fig_error.set_size_inches(15.0, 8.0)
+    if correct:
+        best_tr_rewards = 2 * (best_tr_rewards - 0.5)
+        best_tr_rewards = np.maximum(0.0, best_tr_rewards)
 
-if plot_both:
-
-    top = fig_error.add_subplot(211)
-    bottom = fig_error.add_subplot(212)
-    top.axhline(y=1, color='r', linestyle=':', label='Optimal')
-    bottom.axhline(y=1, color='r', linestyle=':', label='Optimal')
-    top.set_title("On-Policy (Training)")
-    bottom.set_title("Off-Policy (Validation)")
-    #top.set_yscale("log", nonposy='clip')
-    #bottom.set_yscale("log", nonposy='clip')
-
-    for k in range(show_best * m):
-        top.plot(best_tr_rewards[:, k], color=colors[k][0], label=best_labels[k])
-        bottom.plot(best_va_rewards[:, k], color=colors[k][0], label=best_labels[k])
-
-    bottom.legend()
-    plt.show()
-else:
     plt.axhline(y=1, color='r', linestyle=':', label='Optimal')
-    # plt.xlim([0, n])
-    # plt.suptitle("On-Policy (Training)")
-    #top.set_yscale("log", nonposy='clip')
-    #bottom.set_yscale("log", nonposy='clip')
 
     for k in range(show_best * m):
-        plt.plot(best_tr_rewards[:, k], color=colors[k][0], label=best_labels[k])
+        print(best_labels[k])
+        plt.plot(best_tr_rewards[:n, k], color=colors[k][0], label=best_labels[k])
 
-    plt.legend(bbox_to_anchor=(-0.03, 1), fontsize=15)
+    if plot_variance:
+        offset = 1.96 * np.sqrt(best_tr_var_rewards / 2500)
+        for k in range(show_best * m):
+            rng = np.arange(len(offset[:, k]))
+            plt.fill_between(rng, best_tr_rewards[:, k] - offset[:, k], best_tr_rewards[:, k] + offset[:, k], facecolor=colors[k][1])
+
+    plt.legend(bbox_to_anchor=(-0.09, 1), fontsize=15)
     plt.tight_layout()
-    plt.show()
+
+    save_path = path.join(out_folder, env_folder, file_name + str(".eps"))
+    plt.savefig(save_path)

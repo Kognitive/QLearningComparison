@@ -18,7 +18,7 @@ class DeepSeaExplorationThree(DeterministicMDP):
         size_action = action_space.get_size()
 
         # one maps to 2
-        starting_state = N + 1
+        starting_state = 0
 
         # specify the transition function
         transition_func = np.zeros((size_space, size_action), dtype=np.int32)

@@ -39,11 +39,6 @@ class DeterministicMDP:
         with tf.variable_scope("env_{}".format(name)):
             if isinstance(reward_function, np.ndarray):
 
-                # normalize the reward function
-                mi = np.min(reward_function)
-                ma = np.max(reward_function)
-                reward_function = (reward_function - mi) / (ma - mi)
-
                 # Do some assertions on the passed reward and transition functions.
                 # They need to have the height of the state space and the width of
                 state_action_shape = (state_space.get_size(), action_space.get_size())
@@ -145,6 +140,27 @@ class DeterministicMDP:
             self.optimal_reward = reward
             self.q_function = q_function
 
+            # init q function
+            q_shape = (state_size, action_size)
+            q_function = -np.ones(q_shape)
+            next_q_function = np.zeros(q_shape)
+
+            # repeat until converged
+            while np.max(np.abs(q_function - next_q_function)) >= 0.001:
+
+                # create next bootstrapped q function
+                q_function = next_q_function
+                bootstrapped_q_function = np.empty(q_shape)
+
+                # iterate over all fields
+                for s in range(state_size):
+                    for a in range(action_size):
+                        next_state = self.transition_function[s, a]
+                        bootstrapped_q_function[s, a] = np.min(q_function[next_state, :])
+
+                # update the q function correctly
+                next_q_function = self.reward_function + discount * bootstrapped_q_function
+
             # create new environment and simulate
             minimal_policy = np.argmin(q_function, axis=1)
             reward = 0
@@ -157,4 +173,4 @@ class DeterministicMDP:
 
             self.minimal_reward = reward
 
-        return self.optimal_reward, self.minimal_reward, np.min(self.q_function), np.max(self.q_function), q_function
+        return self.optimal_reward, self.minimal_reward, np.min(self.q_function), np.max(self.q_function), self.q_function

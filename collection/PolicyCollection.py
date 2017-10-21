@@ -43,30 +43,28 @@ class PolicyCollection:
 
         # simple deterministic bootstrapped agent
         PolicyCollection.register("shared_bootstrap",
-                                  "Shared InfoGain Bootstrapped (K={})",
+                                  "Shared InfoGain Bootstrapped (S={})",
                                   GreedyPolicy,
-                                  [['num_heads', [1, 3, 5, 7, 10]], ['init_gaussian', [False]], ['shared_learning', [True]]])
+                                  [['shared_steps', [10, 30, 50, 70, 100]], ['num_heads', [5]], ['init_gaussian', [False]], ['shared_learning', [True]]])
+        # PolicyCollection.register("eps_greedy",
+        #                           "$\\epsilon$-Greedy ($\\epsilon$={})",
+        #                           EpsilonGreedyPolicy,
+        #                           [['epsilon', [0.001, 0.005, 0.01, 0.05, 0.1, 0.2, 0.3]], ['init_gaussian', [False]]])
 
         PolicyCollection.register("eps_greedy",
                                   "$\\epsilon$-Greedy ($\\epsilon$={})",
                                   EpsilonGreedyPolicy,
                                   [['epsilon', [0.001, 0.005, 0.01, 0.05, 0.1, 0.2, 0.3]], ['init_gaussian', [False]]])
-
-        #PolicyCollection.register("eps_greedy",
-        #                          "$\\epsilon$-Greedy ($\\epsilon$={})",
-        #                          EpsilonGreedyPolicy,
-        #                          [['epsilon', [0.3, 0.5, 0.7, 0.9]], ['init_gaussian', [False]]])
+        # PolicyCollection.register("boltzmann",
+        #                           "Boltzmann ($\\beta$={})",
+        #                           BoltzmannPolicy,
+        #                           [['temperature', [0.001, 0.005, 0.01, 0.05, 0.1, 0.2, 0.3]], ['init_gaussian', [False]]])
 
         PolicyCollection.register("boltzmann",
                                   "Boltzmann ($\\beta$={})",
                                   BoltzmannPolicy,
-                                   [['temperature', [0.001, 0.005, 0.01, 0.05, 0.1, 0.2, 0.3, 1, 5, 10]], ['init_gaussian', [False]]])
-
-        #PolicyCollection.register("boltzmann",
-        #                          "Boltzmann ($\\beta$={})",
-        #                          BoltzmannPolicy,
-        #                          [['temperature', [0.3, 0.5, 1, 5, 10]],
-        #                           ['init_gaussian', [False]]])
+                                  [['temperature', [0.001, 0.005, 0.01, 0.05, 0.1, 0.2, 0.3, 0.5, 1, 5, 10]],
+                                   ['init_gaussian', [False]]]),
 
         PolicyCollection.register("cb_pseudo_count",
                                   "CB Pseudo Count ($\\beta$={})",
@@ -77,7 +75,7 @@ class PolicyCollection:
         PolicyCollection.register("optimistic",
                                   "Optimistic",
                                   GreedyPolicy,
-                                  [['optimistic', [True]]])
+                                  [['optimistic', [True]], ['init_gaussian', [False]]])
 
         PolicyCollection.register("ucb",
                                   "UCB-Greedy (p={})",
@@ -98,15 +96,13 @@ class PolicyCollection:
         PolicyCollection.register("deterministic_bootstrapped_cb_pseudo_count",
                                   "Deterministic PC Bootstrapped (K={},  \\beta={})",
                                   GreedyPolicy,
-                                  [['num_heads', [7]], ['beta', [0.001, 0.005, 0.01, 0.05, 0.1, 0.2, 0.3, 1]],
+                                  [['num_heads', [7]], ['beta', [0.001, 0.005, 0.01, 0.05, 0.1, 1]],
                                    ['pseudo_count', [True]], ['pseudo_count_type', ['count_based']], ['create_density', [True]], ['init_gaussian', [False]]]),
 
         PolicyCollection.register("ucb_infogain",
-                                  "UCB-InfoGain (lambda={}, info={})",
+                                  "UCB-InfoGain (lambda={}, rho={})",
                                   GreedyPolicy,
-        #                          [['lambda', [0.005, 0.01, 0.05, 0.1, 0.5]], ['ucb_infogain', [True]], ['num_heads', [7]], ['init_gaussian', [False]], ['info_gain_temp', [0.005, 0.01, 0.05, 0.1, 0.5, 1]]])
-                                  [['lambda', [0.005, 0.01, 0.05, 0.1]], ['info_gain_temp', [0.005, 0.01, 0.1, 1]], ['ucb_infogain', [True]], ['num_heads', [7]],
-                                   ['init_gaussian', [False]]])
+                                  [['lambda', [0.005, 0.01, 0.05, 0.1]], ['info_gain_temp', [0.005, 0.01, 0.1, 1]], ['ucb_infogain', [True]], ['num_heads', [7]], ['init_gaussian', [False]]])
 
     @staticmethod
     def register(key, name, policy, parameters):

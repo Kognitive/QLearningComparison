@@ -32,7 +32,7 @@ class EpsilonGreedyPolicy(Policy):
         random_decision_vector = tf.less(tf.random_uniform(sample_size), config['epsilon'])
 
         # let the coin decide about the final actions
-        final_actions = tf.where(random_decision_vector, best_actions, random_actions)
+        final_actions = tf.where(random_decision_vector, random_actions, best_actions)
 
         # pass back the actions and corresponding q values
         model_range = tf.range(0, num_models, 1, dtype=tf.int64)

@@ -3,13 +3,13 @@ class ColorCollection:
     @staticmethod
     def get_colors():
         return [
-            ['#ffe500', '#ffe50080'],  # yellow
-            ['#ff8100', '#ff810080'],  # orange
-            ['#ff1000', '#ff230080'],  # red
-            ['#007d1c', '#00b35880'],  # green
-            ['#1142aa', '#057d9f80'],  # blue
-            ['#4d10a3', '#4d10a380'],  # magenta
-            ['#af11a5', '#af11a580'],  # lila
+            ['#ffe500', '#ffe50040'],  # yellow
+            ['#ff8100', '#ff810040'],  # orange
+            ['#ff1000', '#ff230040'],  # red
+            ['#007d1c', '#00b35840'],  # green
+            ['#1142aa', '#057d9f40'],  # blue
+            ['#4d10a3', '#4d10a340'],  # magenta
+            ['#af11a5', '#af11a540'],  # lila
 
             ['#633c27', '#6ee5e145'], # brown
             ['#16e294', '#b4db9b45'], # green_blue

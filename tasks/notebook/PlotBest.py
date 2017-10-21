@@ -17,14 +17,14 @@ out_folder = "/home/markus/Git/BT/Thesis/img/Evaluations/"
 file_name = "old_strategies"
 #root_folder = "/home/markus/Git/BT/Experiments/presi/"
 #root_folder = "/home/markus/Git/BT/Experiments/unmerged/"
-env_folders = [["grid_world_10", 1200], ["exp_chain_50", 150], ["shared_chain_133", 600], ["bin_flip_4", 300], ["deep_sea_10", 1000]]
+env_folders = [["grid_world_10", 1500, 0], ["exp_chain_50", 150, 0], ["shared_chain_33", 600, 0], ["bin_flip_6", 600, 0.5], ["deep_sea_10", 1000, 0.5]]
 #plot_best_names = [["cb_pseudo_count", 0], ["bootstrapped", 1], ["ucb_infogain", 0], ["shared_bootstrap", 0]]
-plot_best_names = [["eps_greedy", 0], ["boltzmann", 0], ["ucb", 0], ["optimistic", 0]]
+plot_best_names = [["eps_greedy", 0], ["boltzmann", 0], ["optimistic", 0], ["ucb", 0]]
 use_best_at_train = True
 cut_at_min = -1
 show_best = 1
 plot_both = False
-plot_variance = False
+plot_variance = True
 save_fig = True
 # matrix for best rewards and list for best labels
 correct = False
@@ -35,7 +35,7 @@ best_tr_var_rewards = None
 best_labels = list()
 n = 0
 m = len(plot_best_names)
-for [env_folder, cut_at] in env_folders:
+for [env_folder, cut_at, min_lim] in env_folders:
     print("-" * 40)
     print(env_folder)
     best_tr_rewards = None
@@ -50,7 +50,7 @@ for [env_folder, cut_at] in env_folders:
         batch = PolicyCollection.get_batch(name)
         agent_path = path.join(env_path, name)
         if plot_variance: tr_var_tensor = np.loadtxt(path.join(agent_path, "tr_rewards_var.np"))
-        tr_tensor = np.loadtxt(path.join(agent_path, "tr_rewards_mean.np"))
+        tr_tensor = np.loadtxt(path.join(agent_path, "tr_rewards_mean.np"))[:1500]
         tr_tensor[0] = tr_tensor[1]
         tr_tensor = tr_tensor if np.ndim(tr_tensor) == 2 else np.expand_dims(tr_tensor, 1)
         if plot_variance:
@@ -77,11 +77,11 @@ for [env_folder, cut_at] in env_folders:
         [best_labels.append(batch[l][0]) for l in best_indices]
 
     # get the colors as well
-    colors = ColorCollection.get_colors()
+    colors = ColorCollection.get_colors()[1:]
 
     ratio = 11.5 / 4.2
     x = 2.5
-    fig_error = plt.figure(0)
+    fig_error = plt.figure(0, dpi=300)
     plt.clf()
     fig_error.set_size_inches(x * ratio, x)
 
@@ -90,8 +90,9 @@ for [env_folder, cut_at] in env_folders:
         best_tr_rewards = np.maximum(0.0, best_tr_rewards)
 
     plt.axhline(y=1, color='r', linestyle=':', label='Optimal')
-    plt.axhline(y=0, color='b', linestyle=':', label='Minimal')
-    plt.ylim([-0.1, 1.1])
+    if min_lim == 0:
+        plt.axhline(y=0, color='b', linestyle=':', label='Minimal')
+    plt.ylim([-0.1 + min_lim, 1.1])
     for k in range(show_best * m):
         print(best_labels[k])
         plt.plot(best_tr_rewards[:n, k], color=colors[k][0], label=best_labels[k])
@@ -105,6 +106,6 @@ for [env_folder, cut_at] in env_folders:
     plt.legend(bbox_to_anchor=(-0.09, 1), fontsize=15)
     plt.tight_layout()
 
-    save_path = path.join(out_folder, env_folder, file_name + str(".eps"))
+    save_path = path.join(out_folder, env_folder, file_name + str(".pdf"))
     if save_fig: plt.savefig(save_path)
     else: plt.show()

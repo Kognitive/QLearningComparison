@@ -7,7 +7,8 @@ from collection import ColorCollection
 # create base folders
 base_folder = '/home/markus/Git/BT/Experiments/MountainCar-v0/'
 infixes = ['dropout', 'zoneout', 'shakeout']
-merge_folders = ['ddqn_reg_{}_15_0', 'ddqn_reg_{}_15_0','ddqn_reg_{}_15_0']
+#merge_folders = ['ddqn_reg_{}_15_0', 'ddqn_reg_{}_15_0','ddqn_reg_{}_15_0']
+merge_folders = ['ddqn_reg_{}_ucb_15_8', 'ddqn_reg_{}_ucb_15_8','ddqn_reg_{}_ucb_15_8']
 #merge_folders = ['ddqn_{}_15_1', 'ddqn_{}_15_2', 'ddqn_{}_15_1','ddqn_{}_15_2']
 #merge_folders = ['ddqn_{}_15_1', 'ddqn_{}_15_2']
 W = 50
@@ -29,10 +30,10 @@ shift = 320
 indices = None
 
 out_folder = '/home/markus/Git/BT/Thesis/img/Evaluations/mountaincar'
-file_name = 'mc_reg_ens_all_15.eps'
+file_name = 'mc_ucb_reg_ens_all_15.eps'
 
 # create figure
-fig = plt.figure()
+fig = plt.figure(dpi=300)
 plt.clf()
 #ratio = 3.2
 ratio = 2.5
@@ -127,6 +128,6 @@ for ei in range(len(eff_indices)):
 plt.ylim([-200 - o, upper_y + o])
 save_path = os.path.join(out_folder, file_name.format(infix))
 plt.tight_layout()
-plt.savefig(save_path)
+plt.savefig(save_path, dpi=300)
 print("Saved to {}".format(save_path))
 if show: plt.show()

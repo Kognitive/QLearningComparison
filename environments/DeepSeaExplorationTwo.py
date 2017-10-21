@@ -29,6 +29,8 @@ class DeepSeaExplorationTwo(DeterministicMDP):
         right = 1 - left
         chest = 2 * 1 - 1
 
+        reward_function[:, right] = - 0.01 / N
+
         # iterate over and fill with the transitions
         for x in range(N):
             for y in range(N):

@@ -23,19 +23,19 @@ from plots.MultiDimensionalHeatMap import MultiDimensionalHeatmap
 
 run = list()
 
-new_envs = [[GridWorld, [10], lambda n: 2 * n, 2500]]
-new_batch_names = [['shared_info gain_bootstrap', []], ['bootstrapped', []], ['ucb_infogain', []],
-                   ['boltzmann', []], ['cb_pseudo_count', []],
+new_envs = [[BinaryFlipEnvironment, [4], lambda n: 8 * n, 250]]
+new_batch_names = [['bootstrapped', []], ['cb_pseudo_count', []],
+                   ['eps_greedy', []], ['boltzmann', []], ['ucb', []],
                    ['optimistic', []], ['ucb', []],
                    ['bootstrapped_heads_per_sample', []], ['ucb_infogain', []],
-                   ['pc_pseudo_count', []]]
+                   ['pc_pseudo_count', []], ['deterministic_bootstrapped_cb_pseudo_count', []]]
 
 run.append([new_envs, new_batch_names])
 run.append([new_envs, new_batch_names])
 
-save_directory = "run/CompleteRuns"
+save_directory = "run/CompleteTestRun"
 #num_models = 1000
-num_episodes = 10000
+num_episodes = 3000
 
 #record_indices = []  # 0, 1, 2, 3]
 plot_models = 1

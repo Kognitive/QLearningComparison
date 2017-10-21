@@ -16,9 +16,9 @@ root_folder = "/home/markus/Git/BT/Experiments/MDPs"
 #root_folder = "/home/markus/Git/BT/Experiments/presi/"
 #root_folder = "/home/markus/Git/BT/Experiments/unmerged/"
 out_folder = "/home/markus/Git/BT/Thesis/img/Evaluations/"
-#problem_names = ["shared_chain_33", "exp_chain_50", "deep_sea_10", "grid_world_5", "bin_flip_4"]
 problem_names = ["grid_world_10"]
-cut_ats = [7000, 7000, 7000, 2000, 1000]
+#problem_names = ["shared_chain_33", "exp_chain_50", "deep_sea_10", "grid_world_10", "bin_flip_4"]
+cut_ats = [500, 100, 500, 1200, 200]
 cut_min = -1
 plot_best_names = "ucb_infogain"
 use_best_at_train = False
@@ -48,8 +48,6 @@ for pindex in range(len(problem_names)):
     tr_var_tensor = np.loadtxt(path.join(agent_path, "tr_rewards_var.np"))
     tr_tensor = tr_tensor if np.rank(tr_tensor) == 2 else np.expand_dims(tr_tensor, 1)
     tr_var_tensor = tr_var_tensor if np.rank(tr_var_tensor) == 2 else np.expand_dims(tr_var_tensor, 1)
-    tr_tensor[0] = tr_tensor[1]
-    tr_var_tensor[0] = tr_var_tensor[1]
 
     [best_labels.append(batch[l][0]) for l in range(start, len(batch))]
 
@@ -66,16 +64,13 @@ for pindex in range(len(problem_names)):
     #best_tr_rewards = np.maximum(0.0, best_tr_rewards)
 
     plt.axhline(y=1, color='r', linestyle=':', label='Optimal')
-    plt.axhline(y=0, color='b', linestyle=':', label='Optimal')
-    plt.ylim([-0.05, 1.05])
+    # plt.xlim([0, n])
     # plt.suptitle("On-Policy (Training)")
     #top.set_yscale("log", nonposy='clip')
     #bottom.set_yscale("log", nonposy='clip')
     print(problem_name)
     bpi = np.argmax(np.sum(tr_tensor, axis=0)) - 1
-    print("The best params are {}".format(best_labels[bpi]))
-    print("---")
-    print(best_labels)
+    print(best_labels[bpi])
     for k in range(len(batch) - start):
         plt.plot(tr_tensor[:cut_at, start+k], color=colors[k][0], label=best_labels[k])
 

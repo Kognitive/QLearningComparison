@@ -31,6 +31,9 @@ class BinaryFlipEnvironment(DeterministicMDP):
                 transition_func[i, j] = next_state
                 reward_function[i, j] = np.sign(i - next_state) * np.minimum(i, next_state)
 
+        nmax = np.max(reward_function)
+        nmin = np.min(reward_function)
+        reward_function = 2 * ((reward_function - nmin) / (nmax - nmin)) - 1
         super().__init__(name, num_states, action_space, state_space, transition_func, reward_function, starting_state)
 
     def flip_bit(self, number, N, bits):
